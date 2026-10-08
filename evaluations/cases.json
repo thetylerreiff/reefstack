@@ -1,0 +1,27 @@
+{
+  "activation_cases": [
+    {"request": "Change the header color to #334155.", "expect": "Direct edit and focused check; no delegation, ledger, design exercise, or required independent review."},
+    {"request": "Let's discuss whether the import pipeline should be asynchronous. Don't change code.", "expect": "Read-only discussion grounded in relevant source; no implementation."},
+    {"request": "Implement the import pipeline with validation, persistence, and progress reporting.", "expect": "Shared contract proved first; then independent components go to workers launched in the same turn while the main agent integrates; integration checks and fresh independent review."},
+    {"request": "This permission check needs a one-line fix.", "expect": "Inspect authorization consequences; a small diff does not force the trivial path."},
+    {"request": "Actually keep the old API response shape.", "expect": "Update the active contract and affected assignments; preserve the original goal."},
+    {"request": "Why does retrying the export produce duplicate rows?", "expect": "Evidence-backed read-only diagnosis unless a fix is separately requested."},
+    {"request": "What does this helper do?", "expect": "Focused explanation; no full loop."},
+    {"request": "Where do we handle retries across the services? I want to make them consistent.", "expect": "Explorers sweep the codebase and return conclusions with file/line pointers; the main agent does not read every candidate file itself."},
+    {"request": "Rename the config key timeoutMs to timeout_ms everywhere it is read.", "expect": "Codemod or a mechanical worker with an explicit selection rule and a coverage check, not hand edits by the main agent across many files."},
+    {"request": "The worker's fix has now failed the same acceptance test twice.", "expect": "Main agent reproduces and investigates the shared premise instead of spawning another worker."}
+  ],
+  "comparison_tasks": [
+    {"kind": "small-bug", "goal": "Correct a bounded defect with a cheap reproduction."},
+    {"kind": "separable-feature", "goal": "Implement two substantial independent components against one shared contract."},
+    {"kind": "unfamiliar-integration", "goal": "Implement a pipeline with external response variants and verify its consumed output."}
+  ],
+  "method": {
+    "arms": ["selected Sol plus fresh review", "reefstack", "pinned PStack with documented Codex adaptations"],
+    "pilot_runs_per_task_per_arm": 3,
+    "hold_constant": ["starting code", "user request", "parent model and effort", "tools", "acceptance criteria", "resource limits"],
+    "metrics": ["elapsed time to verified completion", "corrective rounds", "escaped defects", "human intervention", "blinded maintainability assessment", "total usage when available"],
+    "quality_gate": "A failed acceptance check or unavailable required proof is not a successful completion.",
+    "limitations": "These are evaluation specifications, not completed trials or a claim of speed improvement. A simulation with explicit context does not prove native plugin activation."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "models": {
+    "explorer": {"model": "gpt-6-luna", "reasoning_effort": "medium"},
+    "mechanical": {"model": "gpt-6-luna", "reasoning_effort": "low"},
+    "worker": {"model": "gpt-6-luna", "reasoning_effort": "high"},
+    "reviewer": {"model": "gpt-6-astra", "reasoning_effort": "medium"},
+    "routine_reviewer": {"model": "gpt-6.1-sol", "reasoning_effort": "medium"}
+  }
+}
