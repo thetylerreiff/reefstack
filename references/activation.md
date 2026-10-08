@@ -6,6 +6,8 @@ Choose depth internally. An obvious local change, such as a header color or typo
 
 Substantial or consequential implementation uses the coordinator skill below. Signals include interdependent components, uncertain external boundaries, shared state, permissions, persistence, difficult algorithms, or a need for integration proof. File count and the word 'feature' are not routing rules. A small diff can still have large consequences.
 
+Use grill before technical design when the user requests an interview or pressure test, or unresolved human intent/product tradeoffs could materially change substantial or consequential work. Read relevant context first; investigate discoverable facts instead of asking the user. The main agent asks one high-value question at a time, challenges assumptions and simpler alternatives, and stops at enough clarity for a decision-ready brief. Clear requirements and tiny edits skip the interview. The brief preserves existing authorization; it does not authorize implementation or external actions on its own.
+
 ## Orchestrate
 
 The main agent owns intent, contracts, the critical path, integration, and the result. Keep its selected model and effort. Its context is the scarcest resource in a long task: keep conclusions in it, not file dumps. Spawn a helper whenever one of these triggers applies:

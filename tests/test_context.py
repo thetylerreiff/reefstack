@@ -43,7 +43,26 @@ class ContextTests(unittest.TestCase):
         result = CONTEXT.context_result("subagent", {})["hookSpecificOutput"]
         self.assertEqual(result["hookEventName"], "SubagentStart")
         self.assertNotIn(str(ROOT / "skills/reefstack/SKILL.md"), result["additionalContext"])
+        self.assertNotIn(str(ROOT / "skills/grill/SKILL.md"), result["additionalContext"])
         self.assertIn(str(ROOT / "references/review-rubric.md"), result["additionalContext"])
+
+    def test_grill_is_available_to_root_across_session_sources(self):
+        for source in ("startup", "resume", "clear", "compact"):
+            with self.subTest(source=source):
+                text = CONTEXT.context_result("session", {"source": source})["hookSpecificOutput"]["additionalContext"]
+                self.assertIn(str(ROOT / "skills/grill/SKILL.md"), text)
+                self.assertTrue((ROOT / "skills/grill/SKILL.md").is_file())
+
+    def test_context_uses_version_from_relocated_manifest(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(parent) / "relocated"
+            shutil.copytree(ROOT, root, ignore=shutil.ignore_patterns("__pycache__", ".git", "dist"))
+            manifest = json.loads((root / "plugin.json").read_text())
+            manifest["version"] = "3.2.1"
+            (root / "plugin.json").write_text(json.dumps(manifest))
+            for mode in ("session", "subagent"):
+                text = CONTEXT.context_result(mode, {}, root=root)["hookSpecificOutput"]["additionalContext"]
+                self.assertIn("Reefstack 3.2.1 context loaded.", text)
 
     def test_untrusted_input_is_not_relayed(self):
         sentinel = "UNTRUSTED_PAYLOAD_SHOULD_NEVER_APPEAR"

@@ -21,6 +21,7 @@ Track the current outcome, constraints, and authorization. Research, planning, d
 
 For substantial work, read only procedures that materially apply:
 
+- [Grill](../grill/SKILL.md) when the user asks to pressure-test an idea, or unresolved intent/product choices could materially change the outcome. Use it before technical design, not for every feature. Clear requirements and small edits skip it; investigate factual uncertainty instead of interviewing the user about it.
 - [Ground](../ground/SKILL.md) when source behavior or integration assumptions need establishing.
 - [Design](../design/SKILL.md) when callers, shared shapes, ownership, or an architectural choice need settling.
 - [Diagnose](../diagnose/SKILL.md) for a defect or repeated failed acceptance condition.
