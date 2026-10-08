@@ -1,0 +1,32 @@
+name: Plugin checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7.0.1 # verified 2026-10-08
+      - uses: actions/setup-python@v7.0.0 # verified 2026-10-08
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check source plugin
+        run: python scripts/health.py
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Build standalone plugin archive
+        run: python scripts/package.py --output "$RUNNER_TEMP/reefstack.zip"
+      - name: Check extracted plugin
+        run: |
+          mkdir "$RUNNER_TEMP/extracted"
+          python -c 'import zipfile, os; zipfile.ZipFile(os.path.join(os.environ["RUNNER_TEMP"], "reefstack.zip")).extractall(os.path.join(os.environ["RUNNER_TEMP"], "extracted"))'
+          python "$RUNNER_TEMP/extracted/reefstack/scripts/health.py"
