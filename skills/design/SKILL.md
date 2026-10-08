@@ -5,6 +5,8 @@ description: Establish caller-first contracts, ownership, acceptance criteria, a
 
 # Design
 
+Use the current intent and any brief from [grill](../grill/SKILL.md). If an unresolved human choice could materially change the outcome, clarify it through grill before committing to a technical shape. Do not add an interview when requirements are already clear, or turn discoverable technical facts into questions for the user.
+
 Write how callers will use the behavior before choosing types and module boundaries. Prefer the existing architecture and the smallest durable change. Define shared shapes once and make downstream work point to that authoritative contract.
 
 Set observable acceptance criteria and representative fixtures, including the variants that cross boundaries. Name independent pieces, shared writes, and blocking assumptions. A list of exclusive files is not proof of independence.

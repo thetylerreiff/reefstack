@@ -86,6 +86,7 @@ def context_result(mode, payload, root=ROOT, data_directory=None):
         policy += "\n\n" + (root / "harness/codex.md").read_text(encoding="utf-8")
         locations = {
             "coordinator": str(root / "skills/reefstack/SKILL.md"),
+            "grill": str(root / "skills/grill/SKILL.md"),
             "worker_brief": str(root / "references/worker-brief.md"),
             "review_rubric": str(root / "references/review-rubric.md")
         }
@@ -100,8 +101,12 @@ def context_result(mode, payload, root=ROOT, data_directory=None):
             "review_rubric": str(root / "references/review-rubric.md")
         }
         model_policy = "The parent's assignment selects your role and model."
+    manifest = read_json(root / "plugin.json")
+    version = manifest.get("version")
+    if not isinstance(version, str) or not version.strip():
+        raise ValueError("plugin version must be a nonempty string")
     context = "\n\n".join([
-        "Reefstack 0.1.0 context loaded.", policy.strip(), model_policy,
+        "Reefstack " + version + " context loaded.", policy.strip(), model_policy,
         "Authoritative packaged references:\n" + json.dumps(locations, sort_keys=True)
     ])
     return {"hookSpecificOutput": {

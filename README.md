@@ -66,6 +66,8 @@ The main agent owns intent, difficult boundaries, the critical path, integration
 
 Depth depends on coupling, uncertainty, impact, and verification needs. File count and the word *feature* do not decide it. A one-line permission change can deserve more scrutiny than a large mechanical edit.
 
+When substantial or consequential work still depends on an unresolved product choice, Reefstack pressure-tests the problem and intended outcome before technical design. It also runs when you explicitly ask to be grilled or to pressure-test an idea. The main agent asks one high-value question at a time, researches facts that can be established from available sources, and offers simpler alternatives when useful. It stops when there is a decision-ready brief covering the problem, outcome, constraints, non-goals, success criteria, and remaining assumptions. Clear requirements and small edits skip this step. The brief clarifies the work; it does not authorize implementation or expand the user's original request.
+
 ```mermaid
 flowchart LR
     A[Understand intent] --> B[Ground and establish contracts]
@@ -87,6 +89,7 @@ The skill names organize the implementation. They are not a vocabulary you need 
 | Skill | Responsibility |
 | --- | --- |
 | `reefstack` | Intent, task depth, routing, coordination, and completion. |
+| `grill` | Pressure-test the problem and intended outcome when unresolved human choices could materially change substantial or consequential work. |
 | `ground` | Relevant source, existing patterns, and uncertain integration facts. |
 | `design` | Caller-first contracts, ownership, fixtures, and acceptance criteria. |
 | `deliver` | Implementation, useful delegation, and continuous integration. |

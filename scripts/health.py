@@ -21,7 +21,7 @@ def inside_file(relative):
 
 def check_package():
     manifest = json.loads(inside_file("plugin.json").read_text())
-    if manifest.get("name") != "reefstack" or manifest.get("version") != "0.1.0":
+    if manifest.get("name") != "reefstack" or not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
         raise ValueError("unexpected plugin identity")
     extension = manifest["extensions"]["com.openai"]
     hooks = json.loads(inside_file(extension["hooks"]).read_text())["hooks"]
@@ -46,7 +46,7 @@ def check_package():
             if ROOT not in local.parents or not local.is_file():
                 raise ValueError("broken skill reference: " + target)
         names.append(skill.name)
-    if set(names) != {"reefstack", "ground", "design", "deliver", "diagnose", "verify", "review", "setup"}:
+    if set(names) != {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup"}:
         raise ValueError("unexpected skills")
     env = dict(os.environ)
     env.pop("PLUGIN_DATA", None)

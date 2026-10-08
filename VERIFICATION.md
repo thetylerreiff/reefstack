@@ -23,11 +23,13 @@ CI runs the package health check and tests and checks an extracted standalone ar
 
 Isolated forward-tests with supplied startup context exercised a direct visual edit, a read-only contract discussion, and a bounded parser/rendering/CLI feature. These tested guidance under supplied context, not native lifecycle delivery. They were not blinded comparisons against other workflows.
 
+The grill scenarios in `evaluations/cases.json` specify intended positive and negative routing behavior, including vague product intent, an explicit request to pressure-test, clear substantial requirements, a tiny edit, and technical uncertainty that should be researched. They are evaluation cases, not completed test results. Those case definitions do not establish grill behavior or native automatic activation. Two isolated first-turn checks with supplied startup context observed a focused bottleneck question for an ambiguous merge-bot idea with no edits, and a direct header-color edit with no interview. They do not establish adaptive follow-up behavior or native lifecycle delivery.
+
 Native desktop startup/resume/compaction delivery, trust state, substantial-task automatic delegation and review, and end-to-end speed improvements remain environment-specific acceptance checks. Skill discovery alone does not prove any of those states.
 
 ## Acceptance in a host
 
-Install and enable Reefstack through the supported interface, review and trust its hook definition, and start a fresh engineering chat. Exercise evaluations/cases.json and inspect actual actions, artifacts, and reviewer activity.
+Install and enable Reefstack through the supported interface, review and trust its hook definition, and start a fresh engineering chat. Exercise evaluations/cases.json, including both the grill and skip cases, and inspect actual questions, research, actions, artifacts, and reviewer activity.
 
 Include a substantial multi-component task, a small local edit, a planning-only request, a failed-worker correction, and unavailable-model handling. Check resume, compaction, and disablement in a fresh session. Record the client version, actual models, code state, checks, elapsed time, corrective rounds, and any escaped defects.
 
