@@ -101,7 +101,7 @@ def context_result(mode, payload, root=ROOT, data_directory=None):
             "review_rubric": str(root / "references/review-rubric.md")
         }
         model_policy = "The parent's assignment selects your role and model."
-    manifest = read_json(root / "plugin.json")
+    manifest = read_json(root / ".codex-plugin/plugin.json")
     version = manifest.get("version")
     if not isinstance(version, str) or not version.strip():
         raise ValueError("plugin version must be a nonempty string")

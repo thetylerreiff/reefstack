@@ -14,12 +14,12 @@ SPEC.loader.exec_module(PACKAGE)
 class PackageTests(unittest.TestCase):
     def make_source(self, parent):
         root = Path(parent) / "source"
-        for directory in ("assets", "evaluations", "hooks", "references", "scripts",
+        for directory in (".codex-plugin", "assets", "evaluations", "hooks", "references", "scripts",
                           "skills/example", "harness", "settings", ".github/workflows",
                           ".agents", "tests", "__pycache__", "build"):
             (root / directory).mkdir(parents=True, exist_ok=True)
         for relative, contents in (
-            ("plugin.json", "{}"),
+            (".codex-plugin/plugin.json", "{}"),
             ("README.md", "readme"),
             ("LICENSE", "license"),
             ("VERIFICATION.md", "verification"),
@@ -55,7 +55,7 @@ class PackageTests(unittest.TestCase):
                 names = set(archive.namelist())
                 self.assertTrue(names)
                 self.assertEqual({name.split("/", 1)[0] for name in names}, {"reefstack"})
-                self.assertIn("reefstack/plugin.json", names)
+                self.assertIn("reefstack/.codex-plugin/plugin.json", names)
                 self.assertIn("reefstack/README.md", names)
                 self.assertIn("reefstack/LICENSE", names)
                 self.assertIn("reefstack/VERIFICATION.md", names)

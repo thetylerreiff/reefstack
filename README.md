@@ -128,7 +128,7 @@ No global model change or custom-agent registration is required. Setting `"enabl
 
 - **Core procedures:** `skills/` and `references/` describe roles, contracts, evidence, and proportional task depth.
 - **Codex adapter:** `harness/codex.md`, `hooks/`, `scripts/context.py`, and `settings.json` supply host mechanics and model mapping.
-- **Distribution:** `plugin.json` is the portable manifest; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace.
+- **Distribution:** `.codex-plugin/plugin.json` is the Codex manifest; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace. Don't add a root `plugin.json`: Codex 0.162 loads no plugin hooks when one is present.
 
 `SessionStart` supplies bounded standing context on startup, resume, clear, and compaction. `SubagentStart` supplies delegated-work standards without turning every helper into another coordinator.
 

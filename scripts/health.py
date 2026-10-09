@@ -20,12 +20,14 @@ def inside_file(relative):
 
 
 def check_package():
-    manifest = json.loads(inside_file("plugin.json").read_text())
+    # Codex ignores hooks when a root Agent Plugins plugin.json is present.
+    if (ROOT / "plugin.json").exists():
+        raise ValueError("root plugin.json suppresses Codex plugin hooks; use .codex-plugin/plugin.json")
+    manifest = json.loads(inside_file(".codex-plugin/plugin.json").read_text())
     if manifest.get("name") != "reefstack" or not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
         raise ValueError("unexpected plugin identity")
-    extension = manifest["extensions"]["com.openai"]
-    hooks = json.loads(inside_file(extension["hooks"]).read_text())["hooks"]
-    inside_file(extension["onboardingSkill"])
+    hooks = json.loads(inside_file(manifest["hooks"]).read_text())["hooks"]
+    inside_file(manifest["extensions"]["com.openai"]["onboardingSkill"])
     if set(hooks) != {"SessionStart", "SubagentStart"}:
         raise ValueError("unexpected hook events")
     session_matcher = re.compile(hooks["SessionStart"][0]["matcher"])
