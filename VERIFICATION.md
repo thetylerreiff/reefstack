@@ -25,6 +25,8 @@ Isolated forward-tests with supplied startup context exercised a direct visual e
 
 The grill scenarios in `evaluations/cases.json` specify intended positive and negative routing behavior, including vague product intent, an explicit request to pressure-test, clear substantial requirements, a tiny edit, and technical uncertainty that should be researched. They are evaluation cases, not completed test results. Those case definitions do not establish grill behavior or native automatic activation. Two isolated first-turn checks with supplied startup context observed a focused bottleneck question for an ambiguous merge-bot idea with no edits, and a direct header-color edit with no interview. They do not establish adaptive follow-up behavior or native lifecycle delivery.
 
+Codex's `hooks/list` (0.162.0-alpha.2) returns no Reefstack hooks while a root Agent Plugins `plugin.json` exists, even with `extensions.com.openai.hooks`. With only `.codex-plugin/plugin.json`, it lists the SessionStart and SubagentStart hooks as untrusted, ready for review.
+
 Native desktop startup/resume/compaction delivery, trust state, substantial-task automatic delegation and review, and end-to-end speed improvements remain environment-specific acceptance checks. Skill discovery alone does not prove any of those states.
 
 ## Acceptance in a host

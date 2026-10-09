@@ -57,12 +57,19 @@ class ContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as parent:
             root = Path(parent) / "relocated"
             shutil.copytree(ROOT, root, ignore=shutil.ignore_patterns("__pycache__", ".git", "dist"))
-            manifest = json.loads((root / "plugin.json").read_text())
+            manifest = json.loads((root / ".codex-plugin/plugin.json").read_text())
             manifest["version"] = "3.2.1"
-            (root / "plugin.json").write_text(json.dumps(manifest))
+            (root / ".codex-plugin/plugin.json").write_text(json.dumps(manifest))
             for mode in ("session", "subagent"):
                 text = CONTEXT.context_result(mode, {}, root=root)["hookSpecificOutput"]["additionalContext"]
                 self.assertIn("Reefstack 3.2.1 context loaded.", text)
+
+    def test_codex_manifest_declares_hooks_without_a_root_manifest(self):
+        # Codex 0.162 loads no plugin hooks when a root Agent Plugins plugin.json exists.
+        self.assertFalse((ROOT / "plugin.json").exists())
+        manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
+        self.assertEqual(manifest["hooks"], "./hooks/hooks.json")
+        self.assertTrue((ROOT / manifest["extensions"]["com.openai"]["onboardingSkill"]).is_file())
 
     def test_untrusted_input_is_not_relayed(self):
         sentinel = "UNTRUSTED_PAYLOAD_SHOULD_NEVER_APPEAR"

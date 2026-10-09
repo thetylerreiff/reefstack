@@ -1,0 +1,26 @@
+{
+  "name": "reefstack",
+  "version": "0.2.1",
+  "description": "Adaptive engineering workflows for fast, verified, maintainable delivery through ordinary conversation.",
+  "license": "MIT",
+  "author": {
+    "name": "Tyler Reiff"
+  },
+  "homepage": "https://github.com/thetylerreiff/reefstack",
+  "repository": "https://github.com/thetylerreiff/reefstack",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Reefstack",
+    "shortDescription": "Engineering flow without the ritual",
+    "developerName": "Tyler Reiff",
+    "category": "Productivity",
+    "logo": "./assets/icon.png",
+    "composerIcon": "./assets/icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md"
+    }
+  }
+}

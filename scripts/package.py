@@ -11,6 +11,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 INCLUDED_DIRECTORIES = (
+    ".codex-plugin",
     "assets",
     "evaluations",
     "harness",
@@ -22,7 +23,7 @@ INCLUDED_DIRECTORIES = (
     "skills",
     "tests",
 )
-INCLUDED_FILES = {"plugin.json", "README.md", "LICENSE", "VERIFICATION.md", "settings.json"}
+INCLUDED_FILES = {"README.md", "LICENSE", "VERIFICATION.md", "settings.json"}
 EXCLUDED_DIRECTORY_NAMES = {
     ".agents", ".git", ".github", ".venv", "__pycache__", "build", "cache",
     "caches", "dist", "node_modules", "target", "venv",
@@ -112,8 +113,8 @@ def build_archive(output, source=ROOT):
         raise PackageError("output must be outside the plugin source directory")
 
     entries = _collect_entries(source)
-    if not any(name == "reefstack/plugin.json" for name, _, is_dir in entries if not is_dir):
-        raise PackageError("plugin.json is missing from the package")
+    if not any(name == "reefstack/.codex-plugin/plugin.json" for name, _, is_dir in entries if not is_dir):
+        raise PackageError(".codex-plugin/plugin.json is missing from the package")
 
     created = False
     try:
