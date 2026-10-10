@@ -14,7 +14,7 @@ Before fan-out, confirm that shared contracts are established and blocking probe
 - **Explorer:** you need facts spread across many files, an unknown location, or a long read whose conclusion is all you need. Several independent questions go to several explorers at once.
 - **Worker:** a substantial piece has its own writable files and an agreed contract. Two or more such pieces run in parallel.
 - **Mechanical (`mechanical` role):** repetitive bounded edits with a clear selection rule and a check that proves coverage. Prefer an existing codemod or script when one can do it reliably.
-- **Hard worker (`hard_worker` role):** cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work that would otherwise wait on the main agent.
+- **Heavy worker (`heavy_worker` role):** cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work that would otherwise wait on the main agent.
 - **Reviewer:** the integrated change is substantial and every worker has handed back; see [review](../review/SKILL.md).
 
 ## Keep it direct when

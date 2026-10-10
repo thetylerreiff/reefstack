@@ -9,7 +9,7 @@ This is initial onboarding or repair, never a prerequisite to ordinary engineeri
 
 Inspect the host's supported plugin installation and hook trust UI. Enabled hooks require the user to review and trust their definition. Never write trust records or bypass trust on the user's behalf. Test a fresh engineering chat and a resumed/compacted chat, confirming actual context delivery and proportional behavior before claiming automatic activation.
 
-Enumerate the actual models and reasoning levels supported by the current agent tool. The parent model remains selected by the user. Compare them with the packaged role defaults in `settings.json` (explorer, mechanical, worker, hard_worker, reviewer, critical_reviewer). Disclose unavailable defaults and use explicit available alternatives. Do not install custom agents or rewrite global configuration simply to select models already supported by spawn requests.
+Enumerate the actual models and reasoning levels supported by the current agent tool. The parent model remains selected by the user. Compare them with the packaged role defaults in `settings.json` (explorer, mechanical, worker, heavy_worker, reviewer, critical_reviewer). Disclose unavailable defaults and use explicit available alternatives. Do not install custom agents or rewrite global configuration simply to select models already supported by spawn requests.
 
 Optional user overrides live in `settings.json` under the host's plugin data directory (the README names it per host). It supports `enabled` and partial entries under `models`. Change it only when the user requests a preference change; preserve unspecified settings. Do not edit the installed cache as a durable preference store.
 

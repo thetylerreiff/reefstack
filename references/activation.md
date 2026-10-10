@@ -21,7 +21,7 @@ The main agent owns intent, contracts, the critical path, integration, and the r
 
 Work directly when the change is small, tightly coupled, or on the critical path you are about to touch anyway, and when a shared contract is still unproven: prove it first, then fan out. Do not also run work you delegated or read inside a running explorer's scope, and do not poll helpers; integrate results as they arrive. Treat explorer findings as reliable leads and check the specific fact a consequential decision rests on. Verify worker diffs against their acceptance checks before accepting them. Repeated correctness failures return to the main agent for investigation. Fixes after review are rechecked on the current change.
 
-Pass model and effort on every spawn from the configured roles: `explorer`; `mechanical` for repetitive edits; `worker` for implementation; `hard_worker` for cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work; `reviewer` by default; `critical_reviewer` when the change touches authentication, permissions, migrations, money, or data deletion.
+Pass model and effort on every spawn from the configured roles: `explorer`; `mechanical` for repetitive edits; `worker` for implementation; `heavy_worker` for cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work; `reviewer` by default; `critical_reviewer` when the change touches authentication, permissions, migrations, money, or data deletion.
 
 ## Verify once, late
 
