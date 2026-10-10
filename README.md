@@ -80,6 +80,8 @@ flowchart LR
 
 These are responsibilities, not mandatory serial steps. Independent reads, implementation, and checks can overlap. Uncertain shared contracts are resolved before dependent workers start. Repeated correctness failures return to the main agent for investigation rather than another blind retry. After Codex opens or pushes to a pull request, it attaches the same 10-minute heartbeat as the app's "Watch and fix PR" button, so checks and conflicts the pull request caused are fixed without another prompt. Pause it from the pull request panel. Settings → Git → "Pull request watch instructions" overrides its defaults.
 
+Routine or larger changes to a UI, CLI, or API are proven by using the running app: a browser for web apps, real commands for CLIs, real requests for APIs, a simulator for mobile. Each changed path is reported as verified, unreachable, blocked, or not tried, with screenshots, command output, or saved responses; only verified counts as a pass. Trivial edits don't launch anything. Ask to "set up a way for agents to test this app" and Reefstack writes a feature map in `docs/verification/`, lints it, and tries one entry for real; later changes use the map and keep it current when an entry point moves.
+
 Discussion, planning, diagnosis, and review remain read-only unless you authorize changes. Reefstack does not grant permission to deploy, alter shared data, contact people, or expand the task.
 
 ## Skills and roles
@@ -94,7 +96,8 @@ The skill names organize the implementation. They are not a vocabulary you need 
 | `design` | Caller-first contracts, ownership, fixtures, and acceptance criteria. |
 | `deliver` | Implementation, useful delegation, and continuous integration. |
 | `diagnose` | Reproduction, hypotheses, root cause, and regression checks. |
-| `verify` | Behavioral proof, revision-specific evidence, and coverage gaps. |
+| `verify` | Behavioral proof, driving the running app for user-facing changes, revision-specific evidence, and coverage gaps. |
+| `map` | On request, a per-feature verification map in `docs/verification/` that tells agents how to reach and check each feature. |
 | `review` | Fresh scrutiny, material findings, and rechecking accepted fixes. |
 | `setup` | Initial onboarding and installation repair. |
 
@@ -130,7 +133,8 @@ No global model change or custom-agent registration is required. Setting `"enabl
 ## Architecture
 
 - **Core procedures:** `skills/` and `references/` describe roles, contracts, evidence, and proportional task depth.
-- **Codex adapter:** `harness/codex.md`, `hooks/`, `scripts/context.py`, and `settings.json` supply host mechanics and model mapping.
+- **Codex adapter:** `harness/codex.md`, `hooks/`, `scripts/context.py`, and `settings.json` supply host mechanics and model mapping. `harness/app-driving.md` lists app-driving options per project type.
+- **Feature map lint:** `scripts/map_lint.py [docs/verification]` checks a map's shape: required sections, typed non-empty entry points, and an index with no missing or dead entries.
 - **Distribution:** `.codex-plugin/plugin.json` is the Codex manifest; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace. Don't add a root `plugin.json`: Codex 0.162 loads no plugin hooks when one is present.
 
 `SessionStart` supplies bounded standing context on startup, resume, clear, and compaction. `SubagentStart` supplies delegated-work standards without turning every helper into another coordinator.
@@ -146,7 +150,7 @@ python3 scripts/health.py
 python3 -m unittest discover -s tests -v
 ```
 
-Runtime scripts and tests use the Python standard library. CI runs package health and tests, creates a standalone ZIP, and verifies its extracted contents.
+Health also lints the packaged feature-map template and, when present, `docs/verification/`. Runtime scripts and tests use the Python standard library. CI runs package health and tests, creates a standalone ZIP, and verifies its extracted contents.
 
 The health report separates package validity and hook-script execution from installation, hook trust, native context delivery, and behavioral acceptance. A valid package is not proof that your desktop loaded it.
 

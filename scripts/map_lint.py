@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Check that a feature map (docs/verification/) has the shape agents rely on."""
+
+import argparse
+from pathlib import Path
+import re
+import sys
+
+
+INDEX = "README.md"
+INDEX_SECTIONS = ("Launch", "Features")
+SECTIONS = ("What it is", "How to reach it", "Setup", "Key paths", "Success looks like")
+OPTIONAL_SECTIONS = ("Gotchas", "Last checked")
+KINDS = ("web", "cli", "api", "mobile", "desktop", "other")
+STATUSES = ("verified", "unreachable", "blocked", "not tried")
+MAX_LINES = 80
+PLACEHOLDER = re.compile(r"<[^<>]*>|(?i:todo|tbd|fixme)\b.*|\?+")
+ENTRY = re.compile(r"^- (\w+):\s*(.*)$")
+LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
+
+
+def sections(text):
+    """Return the H1 title and an ordered list of (H2 heading, body lines, line number)."""
+    title, found, current = None, [], None
+    fenced = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.startswith("```"):
+            fenced = not fenced
+        if not fenced and line.startswith("# ") and title is None and not found:
+            title = line[2:].strip()
+        elif not fenced and line.startswith("## "):
+            current = (line[3:].strip(), [], number)
+            found.append(current)
+        elif current is not None:
+            current[1].append(line)
+    return title, found
+
+
+def is_placeholder(text):
+    text = text.strip().lstrip("-").strip().strip("`").strip()
+    return not text or PLACEHOLDER.fullmatch(text) is not None
+
+
+def has_content(lines):
+    return any(not is_placeholder(line) for line in lines)
+
+
+def lint_feature(name, text):
+    errors = []
+    title, found = sections(text)
+    if not title:
+        errors.append(f"{name}: start with an H1 title naming the feature")
+    if len(text.splitlines()) > MAX_LINES:
+        errors.append(f"{name}: over {MAX_LINES} lines; split it into smaller features")
+    headings = [heading for heading, _, _ in found]
+    required = [heading for heading in headings if heading in SECTIONS]
+    if required != list(SECTIONS):
+        missing = [heading for heading in SECTIONS if heading not in headings]
+        if missing:
+            errors.append(f"{name}: missing section(s) {', '.join('## ' + h for h in missing)}")
+        else:
+            errors.append(f"{name}: put sections in this order: {', '.join('## ' + h for h in SECTIONS)}")
+    for heading, body, number in found:
+        if heading not in SECTIONS + OPTIONAL_SECTIONS:
+            errors.append(f"{name}:{number}: unknown section '## {heading}'; allowed: "
+                          + ", ".join(SECTIONS + OPTIONAL_SECTIONS))
+        elif heading in SECTIONS and not has_content(body):
+            errors.append(f"{name}:{number}: '## {heading}' is empty or a placeholder; write what an agent needs")
+        if heading in OPTIONAL_SECTIONS and any(later in SECTIONS for later in headings[headings.index(heading):]):
+            errors.append(f"{name}:{number}: '## {heading}' goes after the required sections")
+    for heading, body, number in found:
+        if heading == "How to reach it":
+            errors.extend(lint_entries(name, body, number))
+        elif heading == "Key paths" and not any(line.startswith("- ") and line[2:].strip() for line in body):
+            errors.append(f"{name}:{number}: '## Key paths' needs at least one '- ' bullet naming a path to check")
+        elif heading == "Last checked" and has_content(body):
+            words = " ".join(body).lower()
+            if not any(re.search(r"\b" + status + r"\b", words) for status in STATUSES):
+                errors.append(f"{name}:{number}: '## Last checked' must state one of: " + ", ".join(STATUSES))
+    return errors
+
+
+def lint_entries(name, body, start):
+    errors, count = [], 0
+    for offset, line in enumerate(body, 1):
+        if not line.startswith("- "):
+            continue
+        count += 1
+        where = f"{name}:{start + offset}"
+        match = ENTRY.match(line)
+        if not match or match.group(1) not in KINDS:
+            errors.append(f"{where}: write entry points as '- <kind>: `handle`' with kind one of {', '.join(KINDS)}")
+            continue
+        handles = re.findall(r"`([^`]*)`", match.group(2))
+        if not handles or any(is_placeholder(handle) for handle in handles):
+            errors.append(f"{where}: empty entry point; name the real URL, command, endpoint, or screen in backticks")
+    if not count:
+        errors.append(f"{name}:{start}: '## How to reach it' needs at least one entry point")
+    return errors
+
+
+def lint_index(files):
+    errors = []
+    title, found = sections(files[INDEX])
+    headings = {heading: (body, number) for heading, body, number in found}
+    if not title:
+        errors.append(f"{INDEX}: start with an H1 title naming the app")
+    for heading in INDEX_SECTIONS:
+        if heading not in headings or not has_content(headings[heading][0]):
+            errors.append(f"{INDEX}: needs a non-empty '## {heading}' section")
+    linked = set()
+    for target in LINK.findall(files[INDEX]):
+        if "://" in target or not target.endswith(".md"):
+            continue
+        target = target[2:] if target.startswith("./") else target
+        linked.add(target)
+        if target not in files:
+            errors.append(f"{INDEX}: links to missing file '{target}'; fix or remove the entry")
+    for name in sorted(set(files) - {INDEX} - linked):
+        errors.append(f"{INDEX}: '{name}' is not listed; add it under '## Features'")
+    return errors
+
+
+def lint_files(files):
+    """Lint a map given as {file name: text}; returns a list of error strings."""
+    if INDEX not in files:
+        return [f"{INDEX}: missing; add an index with '## Launch' and '## Features'"]
+    errors = lint_index(files)
+    features = sorted(name for name in files if name != INDEX)
+    if not features:
+        errors.append("no feature files; add one short file per feature")
+    for name in features:
+        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*\.md", name):
+            errors.append(f"{name}: use a lowercase-hyphenated .md file name")
+        errors.extend(lint_feature(name, files[name]))
+    return errors
+
+
+def lint_directory(directory):
+    directory = Path(directory)
+    if not directory.is_dir():
+        return [f"{directory}: no feature map directory"]
+    files = {path.name: path.read_text(encoding="utf-8") for path in sorted(directory.glob("*.md"))}
+    return lint_files(files)
+
+
+def template_files(path):
+    """Extract the README and feature examples fenced in the feature-map template."""
+    text = Path(path).read_text(encoding="utf-8")
+    blocks = re.findall(r"^```markdown file=(\S+)\n(.*?)^```$", text, re.M | re.S)
+    if not blocks:
+        raise ValueError("template has no ```markdown file=<name> examples")
+    return dict(blocks)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", nargs="?", default="docs/verification")
+    args = parser.parse_args()
+    try:
+        errors = lint_directory(args.directory)
+    except (OSError, UnicodeError) as error:
+        errors = [f"{args.directory}: cannot read map: {error}"]
+    for error in errors:
+        print(error)
+    if errors:
+        return 1
+    print(f"{args.directory}: feature map ok")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
