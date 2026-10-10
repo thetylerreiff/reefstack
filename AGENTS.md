@@ -10,6 +10,6 @@ This repository is a workflow plugin with a role-based core and a local Python a
 
 Use Python standard-library APIs compatible with Python 3.9+. No web build or dev server is needed. Exclude Git history and private/local configuration from release archives. Do not install the plugin, alter global instructions, or trust hooks as a side effect of running checks.
 
-Core procedures live in skills/ and references/; named host/model mechanics live in harness/, hooks/, scripts/, and settings.json. Read only references needed for the change. Hook changes require tests of actual command transport; routing changes require realistic cases rather than only string assertions.
+Core procedures live in skills/ and references/; named host/model mechanics live in harness/, hooks/, scripts/, and settings.json. Read only references needed for the change. The session context stays under about 2,000 tokens (a test enforces it): new standing text replaces old text, and a rule whose failure stops recurring is deleted. Hook changes require tests of actual command transport; routing changes require realistic cases rather than only string assertions.
 
 Public claims must distinguish package validity, installation, hook trust, native context delivery, and behavioral acceptance. Do not publish benchmark claims without comparative measurements.
