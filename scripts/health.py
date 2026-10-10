@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate the package and exercise hooks without claiming host activation."""
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,22 @@ def inside_file(relative):
     if ROOT not in path.parents or not path.is_file():
         raise ValueError("invalid or missing package path: " + relative)
     return path
+
+
+def check_feature_map():
+    spec = importlib.util.spec_from_file_location("reefstack_map_lint", inside_file("scripts/map_lint.py"))
+    map_lint = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(map_lint)
+    # Agents copy the template, so it must pass the lint it documents.
+    errors = map_lint.lint_files(map_lint.template_files(inside_file("references/feature-map-template.md")))
+    if errors:
+        raise ValueError("feature map template fails lint: " + "; ".join(errors))
+    if not (ROOT / "docs/verification").exists():
+        return "not_present"
+    errors = map_lint.lint_directory(ROOT / "docs/verification")
+    if errors:
+        raise ValueError("feature map fails lint: " + "; ".join(errors))
+    return "pass"
 
 
 def check_package():
@@ -48,7 +65,7 @@ def check_package():
             if ROOT not in local.parents or not local.is_file():
                 raise ValueError("broken skill reference: " + target)
         names.append(skill.name)
-    if set(names) != {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup"}:
+    if set(names) != {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup", "map"}:
         raise ValueError("unexpected skills")
     env = dict(os.environ)
     env.pop("PLUGIN_DATA", None)
@@ -70,7 +87,9 @@ def check_package():
             result = json.loads(run.stdout)["hookSpecificOutput"]
             if result["hookEventName"] != event or not result["additionalContext"]:
                 raise ValueError("hook did not return context")
+    feature_map = check_feature_map()
     return {"package": "pass", "hook_handlers": "pass", "skills": names,
+            "feature_map_template": "pass", "feature_map": feature_map,
             "host_installation": "not_checked", "hook_trust": "not_checked",
             "native_context_delivery": "not_checked", "behavioral_evaluation": "not_checked"}
 

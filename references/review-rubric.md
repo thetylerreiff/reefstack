@@ -10,6 +10,7 @@ Assess only relevant risks:
 - Authentication, authorization, unsafe inputs, and secret handling when applicable.
 - Maintainability: architectural fit, unnecessary layers, hidden state, and duplicate sources of truth.
 - Verification gaps: exercise the complete behavioral path, not only compilation or worker summaries.
+- User-facing changes: each changed path's status (verified, unreachable, blocked, not tried) matches evidence from that entry point on this revision, and a moved entry point has its `docs/verification/` file updated.
 
 Report each finding as:
 
