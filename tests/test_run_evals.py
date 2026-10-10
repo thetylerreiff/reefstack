@@ -44,6 +44,16 @@ FAKE_AGENT = textwrap.dedent('''
 ''')
 
 
+def running(pid):
+    """True while the process exists and is not a zombie awaiting its parent."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    stat = Path(f"/proc/{pid}/stat")
+    return not (stat.exists() and stat.read_text().rsplit(")", 1)[1].split()[0] == "Z")
+
+
 def verdict(case, passed=True):
     return json.dumps({"criteria": [{"criterion": item, "passed": passed, "reason": "seen in transcript"}
                                     for item in case["rubric"]], "summary": "checked"})
@@ -74,13 +84,16 @@ class RunEvalsTests(unittest.TestCase):
     def tearDown(self):
         self.directory.cleanup()
 
-    def suite(self, cases, replies, runs=1, env=None):
+    def suite(self, cases, replies, runs=1, env=None, full_suite=True, committed=True):
         judge = MockJudge(replies)
+        state = {"version": "0.0.0", "revision": "abc1234", "uncommitted_procedure_changes": not committed,
+                 "installation_in_agent": "not_checked"}
         with mock.patch.dict(os.environ, {"REEFSTACK_JUDGE_MODEL": "claude-judge", "ANTHROPIC_API_KEY": SECRET,
-                                          **(env or {})}):
+                                          **(env or {})}), mock.patch.object(RUN_EVALS, "plugin_state",
+                                                                            return_value=state):
             out_dir, report = RUN_EVALS.run_suite(cases, runs, self.agent, judge, self.judge_info,
                                                   self.temp / "results", "reefstack", hidden={"ANTHROPIC_API_KEY"},
-                                                  now=NOW)
+                                                  now=NOW, full_suite=full_suite)
         return out_dir, report, judge
 
     def test_packaged_suite_is_valid_and_blind(self):
@@ -115,6 +128,8 @@ class RunEvalsTests(unittest.TestCase):
         self.assertEqual(log, ["Serve the CSV download from /export/items.csv", "Initial commit"])
         self.assertNotEqual(base, head)
         self.assertIn("/items/export", (project / "docs/verification/items-export.md").read_text())
+        self.assertTrue((project / ".gitignore").is_file())
+        self.assertFalse((project / "gitignore").exists())
         project, _, _ = RUN_EVALS.prepare_workspace(CASES["cli-map-setup"], ROOT / "evaluations/fixtures",
                                                     self.temp / "other")
         self.assertFalse((project / "docs/verification").exists())
@@ -195,6 +210,68 @@ class RunEvalsTests(unittest.TestCase):
         _, report, _ = self.suite([case], [verdict(case)], runs=1)
         self.assertTrue(report["summary"]["all_passed"])
         self.assertFalse(report["summary"]["stopping_rule_met"])
+        # A subset of the suite, or procedures with uncommitted edits, never meets the rule.
+        _, report, _ = self.suite([case], [verdict(case), verdict(case)], runs=2, full_suite=False)
+        self.assertFalse(report["summary"]["stopping_rule_met"])
+        _, report, _ = self.suite([case], [verdict(case), verdict(case)], runs=2, committed=False)
+        self.assertFalse(report["summary"]["stopping_rule_met"])
+
+    def test_agent_exit_failure_and_leftover_servers(self):
+        case = CASES["web-typo-no-launch"]
+        script = self.temp / "server_agent.py"
+        script.write_text(textwrap.dedent('''
+            import subprocess, sys
+            sys.stdin.read()
+            server = subprocess.Popen(["sleep", "60"])
+            open(sys.argv[1], "w").write(str(server.pid))
+            print("started server; pwd", __import__("os").environ.get("PWD"), "oldpwd",
+                  __import__("os").environ.get("OLDPWD"))
+            sys.exit(int(sys.argv[2]))
+        '''))
+        pid_file = self.temp / "server.pid"
+        self.agent["command"] = f'"{sys.executable}" "{script}" "{pid_file}" 3'
+        started = __import__("time").monotonic()
+        out_dir, report, _ = self.suite([case], [verdict(case)])
+        self.assertLess(__import__("time").monotonic() - started, 20)
+        result = report["results"][0]
+        self.assertEqual(result["agent_exit"], 3)
+        self.assertFalse(result["passed"])
+        self.assertFalse(running(int(pid_file.read_text())))
+        transcript = (out_dir / "cases/web-typo-no-launch/run-1/transcript.txt").read_text()
+        self.assertRegex(transcript, r"pwd \S+/pantry oldpwd None")
+
+    def test_port_denial_traceback_does_not_point_at_an_injected_file(self):
+        case = CASES["web-launch-blocked"]
+        project = self.temp / "pantry"
+        project.mkdir()
+        env = RUN_EVALS.agent_environment(case, self.temp / "scratch", project)
+        run = subprocess.run([sys.executable, "-c", "import socket; socket.socket().bind(('127.0.0.1', 0))"],
+                             env=env, text=True, capture_output=True)
+        self.assertIn("PermissionError: [Errno 1] Operation not permitted", run.stderr)
+        self.assertIn("<frozen socket>", run.stderr)
+        self.assertNotIn("sitecustomize", run.stderr)
+
+    def test_probing_the_simulated_sandbox_is_flagged(self):
+        case = copy.deepcopy(CASES["web-launch-blocked"])
+        case["prompt"] += " Check PYTHONPATH first."
+        _, report, _ = self.suite([case], [verdict(case)])
+        self.assertEqual(report["results"][0]["possible_unblinding"], ["PYTHONPATH"])
+
+    def test_oversized_judge_inputs_are_cut_and_recorded(self):
+        case = CASES["web-typo-no-launch"]
+        prompt, truncated = RUN_EVALS.judge_prompt(case, "session-1", "x" * 400_000, "d" * 10, {})
+        self.assertEqual(truncated, ["transcript"])
+        self.assertLess(len(prompt), 310_000)
+        self.assertIn("characters omitted", prompt)
+
+    def test_rejudge_scores_saved_sessions_without_the_agent(self):
+        case = CASES["web-typo-no-launch"]
+        out_dir, report, _ = self.suite([case], [RUN_EVALS.JudgeError("HTTP 529")])
+        self.assertFalse(report["results"][0]["passed"])
+        report = RUN_EVALS.rejudge(out_dir, MockJudge([verdict(case)]), self.judge_info, list(CASES.values()))
+        self.assertTrue(report["results"][0]["passed"])
+        self.assertTrue(json.loads((out_dir / "results.json").read_text())["results"][0]["passed"])
+        self.assertFalse(report["summary"]["stopping_rule_met"])
 
     def test_judge_configuration_comes_from_the_environment(self):
         with self.assertRaisesRegex(RUN_EVALS.SuiteError, "REEFSTACK_JUDGE_MODEL"):
@@ -205,7 +282,11 @@ class RunEvalsTests(unittest.TestCase):
             RUN_EVALS.judge_from_env({"REEFSTACK_JUDGE_MODEL": "m", "REEFSTACK_JUDGE_PROVIDER": "other"})
         judge, info, hidden = RUN_EVALS.judge_from_env({"REEFSTACK_JUDGE_MODEL": "claude-judge",
                                                         "ANTHROPIC_API_KEY": SECRET})
-        self.assertEqual((info, hidden), ({"provider": "anthropic", "model": "claude-judge"}, "ANTHROPIC_API_KEY"))
+        self.assertEqual((info, hidden), ({"provider": "anthropic", "model": "claude-judge"}, {"ANTHROPIC_API_KEY"}))
+        _, _, hidden = RUN_EVALS.judge_from_env({"REEFSTACK_JUDGE_MODEL": "gemini-x", "REEFSTACK_JUDGE_PROVIDER":
+                                                 "command", "REEFSTACK_JUDGE_COMMAND": "judge",
+                                                 "REEFSTACK_JUDGE_SECRET_ENV": "GEMINI_API_KEY, OTHER"})
+        self.assertEqual(hidden, {"GEMINI_API_KEY", "OTHER"})
         self.assertNotIn(SECRET, json.dumps(info))
 
     def test_anthropic_judge_request_shape_and_refusal(self):
@@ -220,11 +301,18 @@ class RunEvalsTests(unittest.TestCase):
 
         def urlopen(request, timeout):
             sent.append(request)
-            return Response(json.dumps(replies.pop(0)).encode())
+            reply = replies.pop(0)
+            if isinstance(reply, Exception):
+                raise reply
+            return Response(json.dumps(reply).encode())
 
-        replies = [{"stop_reason": "end_turn", "content": [{"type": "text", "text": "{\"criteria\": []}"}]},
-                   {"stop_reason": "refusal", "content": []}]
-        judge = RUN_EVALS.AnthropicJudge("claude-judge", SECRET, urlopen=urlopen)
+        def overloaded(code):
+            return RUN_EVALS.urllib.error.HTTPError("u", code, "busy", {}, io.BytesIO(b"busy"))
+
+        replies = [overloaded(529), {"stop_reason": "end_turn", "content": [{"type": "text", "text": "{\"criteria\": []}"}]},
+                   {"stop_reason": "refusal", "content": []}, overloaded(400)]
+        waits = []
+        judge = RUN_EVALS.AnthropicJudge("claude-judge", SECRET, urlopen=urlopen, sleep=waits.append)
         self.assertEqual(judge("prompt"), "{\"criteria\": []}")
         request = sent[0]
         self.assertEqual(request.full_url, "https://api.anthropic.com/v1/messages")
@@ -232,8 +320,12 @@ class RunEvalsTests(unittest.TestCase):
         self.assertEqual(request.get_header("Anthropic-version"), "2023-06-01")
         body = json.loads(request.data)
         self.assertEqual((body["model"], body["messages"][0]["content"]), ("claude-judge", "prompt"))
+        self.assertEqual(waits, [2])
         with self.assertRaisesRegex(RUN_EVALS.JudgeError, "declined"):
             judge("prompt")
+        with self.assertRaisesRegex(RUN_EVALS.JudgeError, "HTTP 400"):
+            judge("prompt")
+        self.assertEqual(waits, [2])
 
     def test_command_judge_and_cli_transport(self):
         case = CASES["web-typo-no-launch"]
