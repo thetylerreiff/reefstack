@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -28,12 +29,17 @@ META_WORDS = re.compile(r"(?i)\b(evals?|evaluat\w*|judg\w*|rubrics?|scor(?:e|es|
                         r"candidates?|arena|experiment\w*|grad(?:er|ers|ing|ed))\b")
 # Files that would tell the agent about the run if it found them in the installed plugin.
 SUITE_FILES = ("cases.json", "playbook.md", "run_evals.py")
+# Signs that the agent went looking at the simulated port denial instead of reporting it.
+SANDBOX_PROBES = ("PYTHONPATH", "sitecustomize")
 DEFAULT_AGENT_COMMAND = "codex exec --json --full-auto --skip-git-repo-check -m {model} -"
 FAMILIES = (("anthropic", r"claude"), ("openai", r"gpt|o\d|codex|chatgpt"), ("google", r"gemini|gemma"),
             ("meta", r"llama"), ("mistral", r"mistral|codestral"), ("xai", r"grok"), ("deepseek", r"deepseek"))
 GIT_IDENTITY = {"GIT_AUTHOR_NAME": "Sam Rivera", "GIT_AUTHOR_EMAIL": "sam@example.test",
                 "GIT_COMMITTER_NAME": "Sam Rivera", "GIT_COMMITTER_EMAIL": "sam@example.test"}
-DENY_BIND = '''import errno
+# Simulates a sandbox that refuses local ports for Python processes. Compiled under a stdlib-looking
+# name so a traceback does not point at an injected file.
+DENY_BIND = '''exec(compile("""
+import errno
 import socket
 
 _bind = socket.socket.bind
@@ -46,7 +52,12 @@ def bind(self, address):
 
 
 socket.socket.bind = bind
+""", "<frozen socket>", "exec"))
 '''
+# Judge inputs above these sizes are cut in the middle, and the result records it.
+MAX_TRANSCRIPT_CHARS = 300_000
+MAX_DIFF_CHARS = 200_000
+RETRY_STATUSES = {408, 429, 500, 502, 503, 504, 529}
 JUDGE_INSTRUCTIONS = """You are reviewing one coding-agent session. A user gave the agent the request below in a small
 project. You see the session transcript, the final diff, and automatic check results. Decide each criterion
 independently from that evidence only: claims in the transcript are not proof unless the transcript also shows
@@ -157,6 +168,9 @@ def prepare_workspace(case, fixtures, parent):
     project = Path(parent) / case.get("project", case["fixture"])
     shutil.copytree(Path(fixtures) / case["fixture"], project,
                     ignore=shutil.ignore_patterns("__pycache__", "data"))
+    # Fixtures keep ignore files as "gitignore" because release archives drop dotfiles.
+    for ignore in project.rglob("gitignore"):
+        ignore.rename(ignore.with_name(".gitignore"))
     setup = case.get("setup", {})
     for relative in setup.get("remove", []):
         target = project / relative
@@ -176,32 +190,58 @@ def prepare_workspace(case, fixtures, parent):
     return project, base, git(project, "rev-parse", "HEAD").strip()
 
 
-def agent_environment(case, scratch, hidden=()):
+def agent_environment(case, scratch, project, hidden=()):
     """The agent's environment: no runner or judge settings, plus any simulated sandbox limits."""
     env = {key: value for key, value in os.environ.items()
-           if not key.startswith("REEFSTACK_") and key not in hidden}
+           if not key.startswith("REEFSTACK_") and key not in hidden and key != "OLDPWD"}
+    env["PWD"] = str(project)
     if case.get("setup", {}).get("deny_port_binding"):
-        site = Path(scratch) / "site"
+        site = Path(scratch) / "lib"
         site.mkdir(parents=True, exist_ok=True)
         (site / "sitecustomize.py").write_text(DENY_BIND)
         env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(site), env.get("PYTHONPATH")]))
     return env
 
 
+def stop_group(process):
+    """Stop everything the agent started, including background servers, by process group."""
+    if not hasattr(os, "killpg"):
+        process.kill()
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(process.pid, sig)
+        except (ProcessLookupError, PermissionError):
+            return
+        time.sleep(0.5)
+
+
 def run_agent(command, model, prompt, project, env, timeout):
-    argv = [part.format(model=model) for part in shlex.split(command)]
+    argv = [part.replace("{model}", model) for part in shlex.split(command)]
     started = time.monotonic()
-    try:
-        run = subprocess.run(argv, input=prompt, cwd=project, env=env, text=True,
-                             capture_output=True, timeout=timeout)
-        stdout, stderr, status = run.stdout, run.stderr, run.returncode
-    except subprocess.TimeoutExpired as error:
-        stdout = error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout or ""
-        stderr = error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr or ""
-        status = "timeout"
-    except OSError as error:
-        raise SuiteError(f"cannot start agent command {argv[0]!r}: {error}")
-    transcript = stdout + ("\n--- stderr ---\n" + stderr if stderr else "")
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        try:
+            # Output goes to files, not pipes, so a server the agent left running cannot hold the runner.
+            process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=stdout, stderr=stderr, cwd=project,
+                                       env=env, start_new_session=hasattr(os, "killpg"))
+        except OSError as error:
+            raise SuiteError(f"cannot start agent command {argv[0]!r}: {error}")
+        try:
+            process.stdin.write(prompt.encode("utf-8"))
+            process.stdin.close()
+        except OSError:
+            pass
+        try:
+            status = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            status = "timeout"
+        stop_group(process)
+        process.wait()
+        stdout.seek(0)
+        stderr.seek(0)
+        out = stdout.read().decode("utf-8", errors="replace")
+        err = stderr.read().decode("utf-8", errors="replace")
+    transcript = out + ("\n--- stderr ---\n" + err if err else "")
     return transcript, status, round(time.monotonic() - started, 1)
 
 
@@ -229,7 +269,18 @@ def capture_diff(project, base):
     return git(project, "diff", "--cached", "--no-color", base)
 
 
+def clip(text, limit):
+    if len(text) <= limit:
+        return text, False
+    half = limit // 2
+    return text[:half] + f"\n[... {len(text) - limit} characters omitted ...]\n" + text[-half:], True
+
+
 def judge_prompt(case, label, transcript, diff, checks):
+    """Return the judge prompt and which inputs were cut to fit."""
+    transcript, cut_transcript = clip(transcript, MAX_TRANSCRIPT_CHARS)
+    diff, cut_diff = clip(diff, MAX_DIFF_CHARS)
+    truncated = [name for name, cut in (("transcript", cut_transcript), ("diff", cut_diff)) if cut]
     criteria = "\n".join(f"{index}. {item}" for index, item in enumerate(case["rubric"], 1))
     return "\n\n".join([
         JUDGE_INSTRUCTIONS,
@@ -239,7 +290,7 @@ def judge_prompt(case, label, transcript, diff, checks):
         "Automatic checks:\n" + json.dumps(checks, indent=2),
         "Transcript:\n<transcript>\n" + transcript + "\n</transcript>",
         "Final diff against the starting commit:\n<diff>\n" + (diff or "(no changes)") + "\n</diff>",
-    ])
+    ]), truncated
 
 
 def parse_verdict(text, rubric):
@@ -261,21 +312,27 @@ class AnthropicJudge:
 
     url = "https://api.anthropic.com/v1/messages"
 
-    def __init__(self, model, api_key, timeout=600, urlopen=urllib.request.urlopen):
+    def __init__(self, model, api_key, timeout=600, urlopen=urllib.request.urlopen, sleep=time.sleep, attempts=4):
         self.model, self.api_key, self.timeout, self.urlopen = model, api_key, timeout, urlopen
+        self.sleep, self.attempts = sleep, attempts
 
     def __call__(self, prompt):
         body = json.dumps({"model": self.model, "max_tokens": 16000,
                            "messages": [{"role": "user", "content": prompt}]}).encode("utf-8")
-        request = urllib.request.Request(self.url, data=body, method="POST", headers={
-            "content-type": "application/json", "x-api-key": self.api_key, "anthropic-version": "2023-06-01"})
-        try:
-            with self.urlopen(request, timeout=self.timeout) as response:
-                reply = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            raise JudgeError(f"judge request failed with HTTP {error.code}: {error.read()[:500]!r}")
-        except (urllib.error.URLError, OSError, ValueError) as error:
-            raise JudgeError(f"judge request failed: {error}")
+        for attempt in range(self.attempts):
+            request = urllib.request.Request(self.url, data=body, method="POST", headers={
+                "content-type": "application/json", "x-api-key": self.api_key, "anthropic-version": "2023-06-01"})
+            try:
+                with self.urlopen(request, timeout=self.timeout) as response:
+                    reply = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as error:
+                if error.code not in RETRY_STATUSES or attempt == self.attempts - 1:
+                    raise JudgeError(f"judge request failed with HTTP {error.code}: {error.read()[:500]!r}")
+            except (urllib.error.URLError, OSError, ValueError) as error:
+                if attempt == self.attempts - 1:
+                    raise JudgeError(f"judge request failed: {error}")
+            self.sleep(2 ** (attempt + 1))
         if reply.get("stop_reason") == "refusal":
             raise JudgeError("judge declined the request")
         return "".join(block.get("text", "") for block in reply.get("content", []) if block.get("type") == "text")
@@ -299,7 +356,7 @@ class CommandJudge:
 
 
 def judge_from_env(env=os.environ):
-    """Build the judge from REEFSTACK_JUDGE_* settings; returns (judge, description, key variable)."""
+    """Build the judge from REEFSTACK_JUDGE_* settings; returns (judge, description, variables to hide)."""
     model = env.get("REEFSTACK_JUDGE_MODEL", "").strip()
     provider = env.get("REEFSTACK_JUDGE_PROVIDER", "anthropic").strip()
     if not model:
@@ -308,42 +365,51 @@ def judge_from_env(env=os.environ):
         key = env.get("ANTHROPIC_API_KEY", "")
         if not key:
             raise SuiteError("set ANTHROPIC_API_KEY for the judge, or REEFSTACK_JUDGE_PROVIDER=command")
-        return AnthropicJudge(model, key), {"provider": provider, "model": model}, "ANTHROPIC_API_KEY"
+        return AnthropicJudge(model, key), {"provider": provider, "model": model}, {"ANTHROPIC_API_KEY"}
     if provider == "command":
         command = env.get("REEFSTACK_JUDGE_COMMAND", "").strip()
         if not command:
             raise SuiteError("REEFSTACK_JUDGE_PROVIDER=command needs REEFSTACK_JUDGE_COMMAND")
-        return CommandJudge(command), {"provider": provider, "model": model}, None
+        # The command judge's own credentials, named in REEFSTACK_JUDGE_SECRET_ENV, are hidden from the agent.
+        hidden = {name.strip() for name in env.get("REEFSTACK_JUDGE_SECRET_ENV", "").split(",") if name.strip()}
+        return CommandJudge(command), {"provider": provider, "model": model}, hidden
     raise SuiteError(f"unsupported REEFSTACK_JUDGE_PROVIDER '{provider}'; use anthropic or command")
 
 
-def run_case(case, run_number, agent, judge, out_dir, fixtures=EVALUATIONS / "fixtures", hidden=()):
-    label = f"session-{run_number}"
-    case_dir = Path(out_dir) / "cases" / case["id"] / f"run-{run_number}"
-    case_dir.mkdir(parents=True)
-    with tempfile.TemporaryDirectory() as parent, tempfile.TemporaryDirectory() as scratch:
-        project, base, head = prepare_workspace(case, fixtures, parent)
-        env = agent_environment(case, scratch, hidden)
-        transcript, status, seconds = run_agent(agent["command"], agent["model"], case["prompt"],
-                                                project, env, agent["timeout"])
-        checks = run_checks(case, project, base, head)
-        diff = capture_diff(project, base)
-    (case_dir / "transcript.txt").write_text(transcript, encoding="utf-8")
-    (case_dir / "diff.patch").write_text(diff, encoding="utf-8")
-    result = {"case": case["id"], "run": run_number, "agent_exit": status, "agent_seconds": seconds,
-              "checks": checks, "criteria": [], "summary": "", "error": None,
-              "possible_unblinding": [name for name in SUITE_FILES if name in transcript]}
+def score(case, result, transcript, diff, judge, case_dir):
+    """Judge one saved session and fill in criteria, score, and pass/fail."""
+    prompt, truncated = judge_prompt(case, f"session-{result['run']}", transcript, diff, result["checks"])
+    result.update(criteria=[], summary="", error=None, judge_input_truncated=truncated)
     try:
-        reply = judge(judge_prompt(case, label, transcript, diff, checks))
+        reply = judge(prompt)
         (case_dir / "judge.txt").write_text(reply, encoding="utf-8")
         result["criteria"], result["summary"] = parse_verdict(reply, case["rubric"])
     except JudgeError as error:
         result["error"] = str(error)
     met = sum(item["passed"] for item in result["criteria"])
     result["score"] = round(met / len(case["rubric"]), 3)
-    result["passed"] = (result["error"] is None and met == len(case["rubric"]) and not result["possible_unblinding"]
-                        and all(check["passed"] for check in checks.values()))
+    result["passed"] = (result["error"] is None and met == len(case["rubric"]) and result["agent_exit"] == 0
+                        and not result["possible_unblinding"]
+                        and all(check["passed"] for check in result["checks"].values()))
     return result
+
+
+def run_case(case, run_number, agent, judge, out_dir, fixtures=EVALUATIONS / "fixtures", hidden=()):
+    case_dir = Path(out_dir) / "cases" / case["id"] / f"run-{run_number}"
+    case_dir.mkdir(parents=True)
+    with tempfile.TemporaryDirectory() as parent, tempfile.TemporaryDirectory() as scratch:
+        project, base, head = prepare_workspace(case, fixtures, parent)
+        env = agent_environment(case, scratch, project, hidden)
+        transcript, status, seconds = run_agent(agent["command"], agent["model"], case["prompt"],
+                                                project, env, agent["timeout"])
+        checks = run_checks(case, project, base, head)
+        diff = capture_diff(project, base)
+    (case_dir / "transcript.txt").write_text(transcript, encoding="utf-8")
+    (case_dir / "diff.patch").write_text(diff, encoding="utf-8")
+    probes = SUITE_FILES + (SANDBOX_PROBES if case.get("setup", {}).get("deny_port_binding") else ())
+    result = {"case": case["id"], "run": run_number, "agent_exit": status, "agent_seconds": seconds,
+              "checks": checks, "possible_unblinding": [name for name in probes if name in transcript]}
+    return score(case, result, transcript, diff, judge, case_dir)
 
 
 def plugin_state():
@@ -357,7 +423,7 @@ def plugin_state():
             "installation_in_agent": "not_checked"}
 
 
-def summarize(results, cases, runs):
+def summarize(results, cases, runs, full_suite, procedures_committed):
     per_case = {}
     for case in cases:
         own = [item for item in results if item["case"] == case["id"]]
@@ -365,8 +431,9 @@ def summarize(results, cases, runs):
                                 "mean_score": round(sum(item["score"] for item in own) / max(len(own), 1), 3)}
     every = all(entry["passed_runs"] == entry["runs"] == runs for entry in per_case.values())
     return {"cases": per_case, "all_passed": every,
-            # Stopping rule: every case passes on at least two consecutive runs of the same revision.
-            "stopping_rule_met": every and runs >= 2}
+            # Stopping rule: every case of the full suite passes on two or more consecutive runs of one
+            # committed revision of the procedures.
+            "stopping_rule_met": every and runs >= 2 and full_suite and procedures_committed}
 
 
 def write_report(out_dir, report):
@@ -393,8 +460,9 @@ def write_report(out_dir, report):
 
 
 def run_suite(cases, runs, agent, judge, judge_info, results_root, label, hidden=(),
-              fixtures=EVALUATIONS / "fixtures", now=None):
+              fixtures=EVALUATIONS / "fixtures", now=None, full_suite=True):
     now = now or datetime.now(timezone.utc)
+    reefstack = plugin_state()  # recorded before the runs, so later edits cannot be credited
     slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-") or "run"
     out_dir = Path(results_root) / f"{now:%Y-%m-%d}-{slug}"
     suffix = 2
@@ -404,13 +472,59 @@ def run_suite(cases, runs, agent, judge, judge_info, results_root, label, hidden
     out_dir.mkdir(parents=True)
     results = [run_case(case, number, agent, judge, out_dir, fixtures, hidden)
                for number in range(1, runs + 1) for case in cases]
-    report = {"date": now.isoformat(timespec="seconds"), "label": label, "runs": runs,
+    report = {"date": now.isoformat(timespec="seconds"), "label": label, "runs": runs, "full_suite": full_suite,
               "agent": {"model": agent["model"], "family": model_family(agent["model"]),
                         "command": agent["command"]},
               "judge": {**judge_info, "family": model_family(judge_info["model"])},
-              "reefstack": plugin_state(), "results": results, "summary": summarize(results, cases, runs)}
+              "reefstack": reefstack, "results": results}
+    report["summary"] = summarize(results, cases, runs, full_suite,
+                                  reefstack["uncommitted_procedure_changes"] is False)
     write_report(out_dir, report)
     return out_dir, report
+
+
+def rejudge(out_dir, judge, judge_info, cases, retry_all=False):
+    """Score saved sessions again without rerunning the agent: failed judgments, or all with retry_all."""
+    out_dir = Path(out_dir)
+    report = json.loads((out_dir / "results.json").read_text(encoding="utf-8"))
+    by_id = {case["id"]: case for case in cases}
+    for result in report["results"]:
+        if result["error"] is None and not retry_all:
+            continue
+        case = by_id[result["case"]]
+        case_dir = out_dir / "cases" / result["case"] / f"run-{result['run']}"
+        transcript = (case_dir / "transcript.txt").read_text(encoding="utf-8")
+        diff = (case_dir / "diff.patch").read_text(encoding="utf-8")
+        score(case, result, transcript, diff, judge, case_dir)
+    report["judge"] = {**judge_info, "family": model_family(judge_info["model"])}
+    selected = [by_id[name] for name in dict.fromkeys(result["case"] for result in report["results"])]
+    report["summary"] = summarize(report["results"], selected, report["runs"], report.get("full_suite", False),
+                                  report["reefstack"]["uncommitted_procedure_changes"] is False)
+    write_report(out_dir, report)
+    return report
+
+
+def run_new(args, cases):
+    """Run the selected cases as a new arm and return (results directory, report)."""
+    full_suite = not args.case
+    if args.case:
+        unknown = set(args.case) - {case["id"] for case in cases}
+        if unknown:
+            raise SuiteError(f"unknown case ids: {sorted(unknown)}")
+        cases = [case for case in cases if case["id"] in args.case]
+    if args.runs < 1:
+        raise SuiteError("--runs must be at least 1")
+    if not args.agent_model:
+        raise SuiteError("set --agent-model or REEFSTACK_AGENT_MODEL so results name the model")
+    judge, judge_info, hidden = judge_from_env()
+    agent_family, judge_family = model_family(args.agent_model), model_family(judge_info["model"])
+    if agent_family == judge_family and agent_family != "unknown":
+        raise SuiteError(f"judge and agent are both {agent_family} models; pick a judge from another family")
+    if "unknown" in (agent_family, judge_family):
+        print("warning: could not tell a model family apart; results record it as unknown", file=sys.stderr)
+    agent = {"command": args.agent_command, "model": args.agent_model, "timeout": args.timeout}
+    return run_suite(cases, args.runs, agent, judge, judge_info, args.results, args.label,
+                     hidden=hidden, full_suite=full_suite)
 
 
 def main(argv=None):
@@ -424,6 +538,9 @@ def main(argv=None):
     parser.add_argument("--results", default=str(EVALUATIONS / "results"))
     parser.add_argument("--list", action="store_true", help="list runnable cases and exit")
     parser.add_argument("--check", action="store_true", help="validate cases, fixtures, and blinding, then exit")
+    parser.add_argument("--rejudge", metavar="RESULTS_DIR",
+                        help="score saved sessions again (failed judgments only) without rerunning the agent")
+    parser.add_argument("--all", action="store_true", help="with --rejudge, score every saved session again")
     args = parser.parse_args(argv)
 
     problems = validate_suite()
@@ -436,25 +553,15 @@ def main(argv=None):
             print(f"{case['id']:<34} {case['fixture']:<8} {case['prompt']}")
         return 0
     try:
-        if args.case:
-            unknown = set(args.case) - {case["id"] for case in cases}
-            if unknown:
-                raise SuiteError(f"unknown case ids: {sorted(unknown)}")
-            cases = [case for case in cases if case["id"] in args.case]
-        if args.runs < 1:
-            raise SuiteError("--runs must be at least 1")
-        if not args.agent_model:
-            raise SuiteError("set --agent-model or REEFSTACK_AGENT_MODEL so results name the model")
-        judge, judge_info, key_variable = judge_from_env()
-        agent_family, judge_family = model_family(args.agent_model), model_family(judge_info["model"])
-        if agent_family == judge_family and agent_family != "unknown":
-            raise SuiteError(f"judge and agent are both {agent_family} models; pick a judge from another family")
-        if "unknown" in (agent_family, judge_family):
-            print("warning: could not tell a model family apart; results record it as unknown", file=sys.stderr)
-        agent = {"command": args.agent_command, "model": args.agent_model, "timeout": args.timeout}
-        out_dir, report = run_suite(cases, args.runs, agent, judge, judge_info, args.results, args.label,
-                                    hidden={key_variable} - {None})
-    except SuiteError as error:
+        if args.rejudge:
+            judge, judge_info, _ = judge_from_env()
+            saved = json.loads((Path(args.rejudge) / "results.json").read_text(encoding="utf-8"))
+            if model_family(saved["agent"]["model"]) == model_family(judge_info["model"]) != "unknown":
+                raise SuiteError("judge and agent are from the same family; pick a judge from another family")
+            report, out_dir = rejudge(args.rejudge, judge, judge_info, cases, args.all), args.rejudge
+        else:
+            out_dir, report = run_new(args, cases)
+    except (SuiteError, OSError, ValueError, KeyError) as error:
         print("run_evals: " + str(error), file=sys.stderr)
         return 2
     summary = report["summary"]

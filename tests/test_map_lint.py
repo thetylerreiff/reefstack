@@ -206,7 +206,8 @@ class MapLintTests(unittest.TestCase):
 
     def committed_fixture(self, parent, fixture):
         project = Path(parent) / fixture
-        shutil.copytree(ROOT / "evaluations/fixtures" / fixture, project)
+        shutil.copytree(ROOT / "evaluations/fixtures" / fixture, project, ignore=shutil.ignore_patterns("__pycache__"))
+        (project / "gitignore").rename(project / ".gitignore")
         identity = ["-c", "user.name=Sam", "-c", "user.email=sam@example.test"]
         for args in (["init", "-q"], ["add", "-A"], [*identity, "commit", "-qm", "start"]):
             subprocess.run(["git", "-C", str(project), *args], check=True, capture_output=True)
@@ -217,6 +218,8 @@ class MapLintTests(unittest.TestCase):
             project = self.committed_fixture(parent, "pantry")
             app = project / "pantry/app.py"
             app.write_text(app.read_text().replace('"/items/export"', '"/export/items.csv"'))
+            # A compiled file that still holds the old literal is not source and must not mask the change.
+            (project / "app.cpython-39.pyc").write_bytes(b'\x00\x01"/items/export"\x00')
             stale = MAP_LINT.stale_entries(project / "docs/verification", "HEAD")
             self.assertEqual(len(stale), 1)
             self.assertIn("items-export.md: entry `/items/export` names '/items/export'", stale[0])
@@ -236,6 +239,34 @@ class MapLintTests(unittest.TestCase):
             self.assertEqual([error.split(":")[0] for error in stale], ["category-totals.md"])
             self.assertIn("names 'summary'", stale[0])
             cli.write_text(original.replace('add_parser("summary"', 'add_parser("report", aliases=["summary"]'))
+            self.assertEqual(MAP_LINT.stale_entries(project / "docs/verification", "HEAD"), [])
+
+    def test_drift_check_handles_prose_urls_parameters_and_launchers(self):
+        with tempfile.TemporaryDirectory() as parent:
+            project = self.committed_fixture(parent, "pantry")
+            entry = project / "docs/verification/items-export.md"
+            entry.write_text(entry.read_text().replace(
+                "- web: `/items/export`", "- web: `http://127.0.0.1:8765/items/export`\n- web: `/items/<id>`"))
+            app = project / "pantry/app.py"
+            app.write_text(app.read_text().replace('elif path == "/items":', 'elif path == "/items/<int:item_id>":'))
+            subprocess.run(["git", "-C", str(project), "-c", "user.name=Sam", "-c", "user.email=sam@example.test",
+                            "commit", "-qam", "detail route"], check=True)
+            app.write_text(app.read_text().replace('"/items/export"', '"/export/items.csv"')
+                           .replace('"/items/<int:item_id>"', '"/products/<int:item_id>"'))
+            # A prose mention of the old route does not keep the entry alive.
+            (project / "NOTES.md").write_text('Old download: "/items/export"\n')
+            stale = MAP_LINT.stale_entries(project / "docs/verification", "HEAD")
+            self.assertEqual(sorted(error.split("names ")[1].split(",")[0] for error in stale),
+                             ["'/items/'", "'/items/export'"])
+            self.assertTrue(any("`http://127.0.0.1:8765/items/export`" in error for error in stale), stale)
+        with tempfile.TemporaryDirectory() as parent:
+            project = self.committed_fixture(parent, "tally")
+            helper = project / "tally/runner.py"
+            helper.write_text('COMMAND = ["python3", "-m", "tally"]\n')
+            subprocess.run(["git", "-C", str(project), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(project), "-c", "user.name=Sam", "-c", "user.email=sam@example.test",
+                            "commit", "-qm", "helper"], check=True)
+            helper.write_text('import sys\nCOMMAND = [sys.executable, "-m", "tally"]\n')
             self.assertEqual(MAP_LINT.stale_entries(project / "docs/verification", "HEAD"), [])
 
     def test_since_flag_runs_the_drift_check_from_the_command_line(self):

@@ -19,6 +19,10 @@ PLACEHOLDER = re.compile(r"<[^<>]*>|(TODO|TBD|FIXME)\b.*|\?+")
 ENTRY = re.compile(r"^- (\w+):\s*(.*)$")
 STATUS = re.compile(r"^Status: (" + "|".join(STATUSES) + r")\b", re.M)
 # Inline links (optionally <bracketed> or titled) and reference definitions.
+# Interpreter and runner words in front of a CLI's own command name.
+LAUNCHERS = {"python", "python3", "node", "npx", "npm", "yarn", "pnpm", "uv", "poetry", "pipenv", "bundle",
+             "exec", "run", "go", "cargo", "java", "-m", "--"}
+PROSE = {".md", ".markdown", ".rst", ".txt", ".adoc"}
 LINK = re.compile(r"\]\(<?([^)#\s>]+)>?(?:#[^)\s]*)?(?:\s+\"[^\"]*\")?\)|^\[[^\]]+\]:\s*<?([^#\s>]+)", re.M)
 
 
@@ -173,24 +177,25 @@ def entry_handles(text):
 
 
 def handle_tokens(kind, handle):
-    """Source literals a handle depends on, as (token, is_prefix) pairs."""
-    tokens = []
-    for match in re.finditer(r"(?<![\w.])/[\w\-./]*", handle):
-        following = handle[match.end():match.end() + 1]
-        # A path cut short by a parameter (<id>, {id}, :id, [id]) matches by prefix.
-        prefix = match.group().endswith("/") or (following != "" and following in "<{:[")
-        if match.group() != "/":
-            tokens.append((match.group(), prefix))
-    if tokens:
-        return tokens
+    """Source literals a handle depends on: route paths, command words, or the label itself."""
+    handle = re.sub(r"\b[a-z][a-z0-9+.-]*://[^/\s`]*", "", handle)  # keep only the path of a full URL
+    # A route cut short by a parameter (<id>, {id}, :id, [id]) keeps its static prefix, like "/items/".
+    paths = [path for path in re.findall(r"(?<![\w.])/[^\s`<{:\[?#]*", handle) if path != "/"]
+    if paths:
+        return paths
     if kind == "cli":
-        tokens = []
+        words = []
         for word in handle.split():
             if not re.fullmatch(r"-{0,2}[A-Za-z][\w-]*", word):
                 break
-            tokens.append((word, False))
-        return tokens
-    return [(handle.strip(), False)]
+            if word not in LAUNCHERS:
+                words.append(word)
+        return words
+    return [handle.strip()]
+
+
+def static_part(literal):
+    return re.split(r"[<{:\[]", literal, maxsplit=1)[0]
 
 
 def quoted_literals(text):
@@ -205,28 +210,31 @@ def git(repo, *args):
 
 
 def stale_entries(directory, base):
-    """Map handles whose source literal the change since base removed from the whole tree."""
+    """Map handles whose source literal the change since base removed from every code file."""
     directory = Path(directory).resolve()
     repo = Path(git(directory, "rev-parse", "--show-toplevel").strip())
     map_path = directory.relative_to(repo).as_posix()
     diff = git(repo, "diff", "--unified=0", base, "--", ".", ":(exclude)" + map_path)
-    removed = quoted_literals("\n".join(line[1:] for line in diff.splitlines()
-                                        if line.startswith("-") and not line.startswith("---")))
+    removed = {static_part(literal) for literal in quoted_literals("\n".join(
+        line[1:] for line in diff.splitlines() if line.startswith("-") and not line.startswith("---")))}
     current = set()
     for name in git(repo, "ls-files", "-co", "--exclude-standard", "-z").split("\0"):
         path = repo / name
-        if not name or name.startswith(map_path + "/") or not path.is_file() or path.stat().st_size > 1_000_000:
+        # Prose that still mentions an old route does not keep it alive.
+        if (not name or name.startswith(map_path + "/") or path.suffix.lower() in PROSE
+                or not path.is_file() or path.stat().st_size > 1_000_000):
             continue
-        current |= quoted_literals(path.read_text(encoding="utf-8", errors="ignore"))
+        data = path.read_bytes()
+        if b"\0" in data:  # compiled or binary files are not source
+            continue
+        current |= {static_part(literal) for literal in quoted_literals(data.decode("utf-8", errors="ignore"))}
     errors = []
     for feature in sorted(directory.glob("*.md")):
         if feature.name == INDEX:
             continue
         for kind, handle in entry_handles(feature.read_text(encoding="utf-8")):
-            for token, prefix in handle_tokens(kind, handle):
-                def used(literals):
-                    return any(literal == token or prefix and literal.startswith(token) for literal in literals)
-                if used(removed) and not used(current):
+            for token in handle_tokens(kind, handle):
+                if token in removed and token not in current:
                     errors.append(f"{feature.name}: entry `{handle}` names '{token}', which this change removed "
                                   "from the source; update the map entry in the same change")
     return errors

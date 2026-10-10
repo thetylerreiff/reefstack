@@ -16,7 +16,7 @@ The local health check and unittest suite exercise:
 - Standalone archive layout, inclusion, exclusions, output safety, and extraction.
 - Feature-map lint: required sections and order, typed non-empty entry points, index coverage, `Last checked` statuses, CLI exit codes, and health's lint of the packaged template and any `docs/verification/`.
 - Map drift check (`--since`): a renamed route in the web fixture and a renamed subcommand in the CLI fixture are flagged in real git repositories, and clear once the map moves or the old name is kept as an alias.
-- Evaluation runner: case and fixture validation, blinding rejection, neutral workspaces, simulated port-binding denial, deterministic checks overriding the judge, judge-reply failures, the stopping rule, the judge's request shape, key handling, and the command-line transport, all with a fake agent and a mock judge. No model was called.
+- Evaluation runner: case and fixture validation, blinding rejection, neutral workspaces, environment scrubbing, simulated port-binding denial, cleanup of servers the agent leaves running, deterministic checks and agent exit status overriding the judge, judge-reply failures and retries, input truncation, re-judging saved sessions, the stopping rule (full suite, committed procedures, consecutive runs), the judge's request shape, key handling, and the command-line transport, all with a fake agent and a mock judge. No model was called.
 - Failure log entries name an outcome and an enforcing file that exists.
 
 The icon is a square 1254-by-1254 PNG, below the documented size limit, referenced by both logo and composerIcon.

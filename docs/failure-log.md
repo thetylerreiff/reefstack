@@ -21,11 +21,18 @@ Observed failures in Reefstack's own development and what each became. See [enfo
 - Seen: 2026-10-10, independent review of the feature-map change
 - Cause: the lint searched for a status word anywhere, so a negated status passed.
 - Became: check
-- Enforced by: `scripts/map_lint.py` requires a `Status:` line; `tests/test_map_lint.py` covers negations
+- Enforced by: `scripts/map_lint.py` requires a `Status:` line; `tests/test_map_lint.py` test_last_checked_needs_a_status_and_must_come_last
 
-### Moved entry point left the map stale
+### Stopping rule credited a partial suite
 
-- Seen: 2026-10-10, raised as a known risk when adding the feature map; not yet observed in an agent run
-- Cause: nothing failed when a change renamed a route or command and the map still named the old one; it relied on the agent remembering.
+- Seen: 2026-10-10, independent review of the evaluation runner
+- Cause: `--case X --runs 2` reported the stopping rule met, and uncommitted procedure edits did not reset it.
 - Became: check
-- Enforced by: `scripts/map_lint.py --since <base>`; rename tests in `tests/test_map_lint.py`
+- Enforced by: `tests/test_run_evals.py` test_stopping_rule_needs_every_case_on_consecutive_runs
+
+### Agent-started servers outlived the session
+
+- Seen: 2026-10-10, independent review of the evaluation runner
+- Cause: a background server from one run kept its port and the runner's output pipe into the next run.
+- Became: check
+- Enforced by: `scripts/run_evals.py` stops the agent's process group; `tests/test_run_evals.py` test_agent_exit_failure_and_leftover_servers
