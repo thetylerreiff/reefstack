@@ -107,7 +107,7 @@ The main agent keeps the model and reasoning effort selected in your chat. Helpe
 | Explorer (`explorer`) | GPT-6 Luna | Medium |
 | Mechanical worker (`mechanical`) | GPT-6 Luna | Medium |
 | Implementation worker (`worker`) | GPT-6 Luna | High |
-| Hard worker (`hard_worker`): cross-cutting, concurrency, environment, debugging | GPT-6.1 Sol | High |
+| Heavy worker (`heavy_worker`): cross-cutting, concurrency, environment, debugging | GPT-6.1 Sol | High |
 | Reviewer (`reviewer`) | GPT-6 Astra | High |
 | Critical reviewer (`critical_reviewer`): auth, permissions, migrations, money, data deletion | GPT-6 Astra | Xhigh |
 
