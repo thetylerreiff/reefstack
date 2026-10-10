@@ -36,6 +36,16 @@ def check_feature_map():
     return "pass"
 
 
+def check_evaluations():
+    spec = importlib.util.spec_from_file_location("reefstack_run_evals", inside_file("scripts/run_evals.py"))
+    run_evals = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(run_evals)
+    # Static only: case shape, fixtures, and blinding. Agent and judge runs are never started here.
+    problems = run_evals.validate_suite()
+    if problems:
+        raise ValueError("evaluation suite: " + "; ".join(problems))
+
+
 def check_package():
     # Codex ignores hooks when a root Agent Plugins plugin.json is present.
     if (ROOT / "plugin.json").exists():
@@ -88,8 +98,9 @@ def check_package():
             if result["hookEventName"] != event or not result["additionalContext"]:
                 raise ValueError("hook did not return context")
     feature_map = check_feature_map()
+    check_evaluations()
     return {"package": "pass", "hook_handlers": "pass", "skills": names,
-            "feature_map_template": "pass", "feature_map": feature_map,
+            "feature_map_template": "pass", "feature_map": feature_map, "evaluation_suite": "pass",
             "host_installation": "not_checked", "hook_trust": "not_checked",
             "native_context_delivery": "not_checked", "behavioral_evaluation": "not_checked"}
 

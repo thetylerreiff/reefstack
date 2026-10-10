@@ -28,6 +28,8 @@ EXCLUDED_DIRECTORY_NAMES = {
     ".agents", ".git", ".github", ".venv", "__pycache__", "build", "cache",
     "caches", "dist", "node_modules", "target", "venv",
 }
+# Local evaluation output (transcripts, diffs) is never release content.
+EXCLUDED_RELATIVE_PATHS = {"evaluations/results"}
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 
@@ -85,9 +87,10 @@ def _collect_entries(root):
             except OSError as error:
                 raise PackageError("cannot read package directory {}: {}".format(relative, error))
             for child in children:
-                if child.name.startswith(".") or child.name in EXCLUDED_DIRECTORY_NAMES:
-                    continue
                 child_relative = relative / child.name
+                if (child.name.startswith(".") or child.name in EXCLUDED_DIRECTORY_NAMES
+                        or PurePosixPath(*child_relative.parts[1:]).as_posix() in EXCLUDED_RELATIVE_PATHS):
+                    continue
                 visit(child, child_relative, next_ancestors)
         elif stat.S_ISREG(mode):
             entries.append((relative.as_posix(), path, False))

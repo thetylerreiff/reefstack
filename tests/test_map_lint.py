@@ -204,6 +204,55 @@ class MapLintTests(unittest.TestCase):
             self.assertEqual(run.returncode, 1)
             self.assertIn("no feature map directory", run.stdout)
 
+    def committed_fixture(self, parent, fixture):
+        project = Path(parent) / fixture
+        shutil.copytree(ROOT / "evaluations/fixtures" / fixture, project)
+        identity = ["-c", "user.name=Sam", "-c", "user.email=sam@example.test"]
+        for args in (["init", "-q"], ["add", "-A"], [*identity, "commit", "-qm", "start"]):
+            subprocess.run(["git", "-C", str(project), *args], check=True, capture_output=True)
+        return project
+
+    def test_renamed_route_leaves_stale_entry_until_the_map_moves_with_it(self):
+        with tempfile.TemporaryDirectory() as parent:
+            project = self.committed_fixture(parent, "pantry")
+            app = project / "pantry/app.py"
+            app.write_text(app.read_text().replace('"/items/export"', '"/export/items.csv"'))
+            stale = MAP_LINT.stale_entries(project / "docs/verification", "HEAD")
+            self.assertEqual(len(stale), 1)
+            self.assertIn("items-export.md: entry `/items/export` names '/items/export'", stale[0])
+            entry = project / "docs/verification/items-export.md"
+            entry.write_text(entry.read_text().replace("`/items/export`", "`/export/items.csv`"))
+            self.assertEqual(MAP_LINT.stale_entries(project / "docs/verification", "HEAD"), [])
+
+    def test_renamed_cli_command_is_flagged_but_a_kept_alias_is_not(self):
+        with tempfile.TemporaryDirectory() as parent:
+            project = self.committed_fixture(parent, "tally")
+            cli = project / "tally/cli.py"
+            original = cli.read_text()
+            cli.write_text(original.replace('add_parser("summary"', 'add_parser("report"'))
+            checks = project / "test_tally.py"
+            checks.write_text(checks.read_text().replace('"summary"', '"report"'))
+            stale = MAP_LINT.stale_entries(project / "docs/verification", "HEAD")
+            self.assertEqual([error.split(":")[0] for error in stale], ["category-totals.md"])
+            self.assertIn("names 'summary'", stale[0])
+            cli.write_text(original.replace('add_parser("summary"', 'add_parser("report", aliases=["summary"]'))
+            self.assertEqual(MAP_LINT.stale_entries(project / "docs/verification", "HEAD"), [])
+
+    def test_since_flag_runs_the_drift_check_from_the_command_line(self):
+        with tempfile.TemporaryDirectory() as parent:
+            project = self.committed_fixture(parent, "pantry")
+            command = [sys.executable, str(ROOT / "scripts/map_lint.py"), "docs/verification", "--since", "HEAD"]
+            run = subprocess.run(command, cwd=project, text=True, capture_output=True)
+            self.assertEqual(run.returncode, 0, run.stdout)
+            app = project / "pantry/app.py"
+            app.write_text(app.read_text().replace('"/items/export"', '"/csv"'))
+            run = subprocess.run(command, cwd=project, text=True, capture_output=True)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("update the map entry in the same change", run.stdout)
+            run = subprocess.run(command[:-1] + ["no-such-revision"], cwd=project, text=True, capture_output=True)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("cannot read map", run.stdout)
+
     def test_health_lints_template_and_project_map(self):
         with tempfile.TemporaryDirectory() as parent:
             root = Path(parent) / "relocated plugin"

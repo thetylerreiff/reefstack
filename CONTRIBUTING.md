@@ -18,7 +18,7 @@ Use a fresh output path for each archive. The builder refuses overwrites.
 
 Provide the ordinary user request and the observed failure. Explain which routing or verification decision should change. Keep role-neutral guidance in the core and Codex mechanics in the adapter. Preserve read-only discussion/review boundaries and direct handling of small edits.
 
-Update a realistic case in evaluations/cases.json when routing behavior changes. Tests of strings or metadata do not demonstrate that an agent follows the procedure; inspect actions and artifacts in an isolated task when behavioral validation matters.
+Update a realistic case in evaluations/cases.json when routing behavior changes. Tests of strings or metadata do not demonstrate that an agent follows the procedure; inspect actions and artifacts in an isolated task when behavioral validation matters. For verification and review behavior, add or update a runnable case and run it with `scripts/run_evals.py` as described in [the playbook](evaluations/playbook.md); a procedure change is done when every case passes on two consecutive runs. When the same failure shows up twice, follow [enforcement](references/enforcement.md) and record it in [the failure log](docs/failure-log.md).
 
 ## Changes to hooks or scripts
 

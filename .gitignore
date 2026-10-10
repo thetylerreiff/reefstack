@@ -7,3 +7,5 @@ __pycache__/
 venv/
 dist/
 *.zip
+# Raw evaluation transcripts and diffs stay local; summaries can be committed.
+evaluations/results/*/cases/

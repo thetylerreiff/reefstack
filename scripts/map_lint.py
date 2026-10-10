@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Check that a feature map (docs/verification/) has the shape agents rely on."""
+"""Check that a feature map (docs/verification/) has the shape agents rely on and is not stale."""
 
 import argparse
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
@@ -159,13 +160,89 @@ def template_files(path):
     return dict(blocks)
 
 
+def entry_handles(text):
+    """Yield (kind, handle) for every backticked handle under '## How to reach it'."""
+    for heading, body, _ in sections(text)[1]:
+        if heading != "How to reach it":
+            continue
+        for line in body:
+            match = ENTRY.match(line)
+            if match:
+                for handle in re.findall(r"`([^`]+)`", match.group(2)):
+                    yield match.group(1), handle
+
+
+def handle_tokens(kind, handle):
+    """Source literals a handle depends on, as (token, is_prefix) pairs."""
+    tokens = []
+    for match in re.finditer(r"(?<![\w.])/[\w\-./]*", handle):
+        following = handle[match.end():match.end() + 1]
+        # A path cut short by a parameter (<id>, {id}, :id, [id]) matches by prefix.
+        prefix = match.group().endswith("/") or (following != "" and following in "<{:[")
+        if match.group() != "/":
+            tokens.append((match.group(), prefix))
+    if tokens:
+        return tokens
+    if kind == "cli":
+        tokens = []
+        for word in handle.split():
+            if not re.fullmatch(r"-{0,2}[A-Za-z][\w-]*", word):
+                break
+            tokens.append((word, False))
+        return tokens
+    return [(handle.strip(), False)]
+
+
+def quoted_literals(text):
+    return {match[1] for match in re.findall(r"([\"'`])([^\"'`\n]{1,200})\1", text)}
+
+
+def git(repo, *args):
+    run = subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True)
+    if run.returncode:
+        raise ValueError("git " + " ".join(args) + " failed: " + run.stderr.strip())
+    return run.stdout
+
+
+def stale_entries(directory, base):
+    """Map handles whose source literal the change since base removed from the whole tree."""
+    directory = Path(directory).resolve()
+    repo = Path(git(directory, "rev-parse", "--show-toplevel").strip())
+    map_path = directory.relative_to(repo).as_posix()
+    diff = git(repo, "diff", "--unified=0", base, "--", ".", ":(exclude)" + map_path)
+    removed = quoted_literals("\n".join(line[1:] for line in diff.splitlines()
+                                        if line.startswith("-") and not line.startswith("---")))
+    current = set()
+    for name in git(repo, "ls-files", "-co", "--exclude-standard", "-z").split("\0"):
+        path = repo / name
+        if not name or name.startswith(map_path + "/") or not path.is_file() or path.stat().st_size > 1_000_000:
+            continue
+        current |= quoted_literals(path.read_text(encoding="utf-8", errors="ignore"))
+    errors = []
+    for feature in sorted(directory.glob("*.md")):
+        if feature.name == INDEX:
+            continue
+        for kind, handle in entry_handles(feature.read_text(encoding="utf-8")):
+            for token, prefix in handle_tokens(kind, handle):
+                def used(literals):
+                    return any(literal == token or prefix and literal.startswith(token) for literal in literals)
+                if used(removed) and not used(current):
+                    errors.append(f"{feature.name}: entry `{handle}` names '{token}', which this change removed "
+                                  "from the source; update the map entry in the same change")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", nargs="?", default="docs/verification")
+    parser.add_argument("--since", metavar="BASE",
+                        help="also flag entry points whose route, command, or label the change since BASE removed")
     args = parser.parse_args()
     try:
         errors = lint_directory(args.directory)
-    except (OSError, UnicodeError) as error:
+        if args.since and Path(args.directory).is_dir():
+            errors += stale_entries(args.directory, args.since)
+    except (OSError, UnicodeError, ValueError) as error:
         errors = [f"{args.directory}: cannot read map: {error}"]
     for error in errors:
         print(error)
