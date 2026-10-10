@@ -13,7 +13,7 @@ Choose checks that would fail if the requested behavior or boundary assumption w
 
 When a routine or larger change alters what a user sees or does through a UI, CLI, or API, start the app and use the changed paths as a user would: a browser for web apps, real commands for CLIs, real requests for APIs, a simulator for mobile. Prefer the project's own end-to-end tooling; [app driving](../../harness/app-driving.md) lists options per project type. Trivial edits (copy, color, typo, no visible behavior change) get a focused check and no launch.
 
-If `docs/verification/` exists, use its feature files for launch, setup, entry points, and success criteria. When the change moves an entry point, update the map in the same change and run the [map lint](../../scripts/map_lint.py).
+If `docs/verification/` exists, use its feature files for launch, setup, entry points, and success criteria. When the change moves an entry point, update the map in the same change and run the [map lint](../../scripts/map_lint.py) with `--since <base>` to catch entries the change left stale.
 
 Report each changed path as verified, unreachable (with the reason), blocked, or not tried, with its evidence: screenshots, command output, or saved responses. A sandbox that blocks the launch, or a missing driver, is blocked, never a pass.
 

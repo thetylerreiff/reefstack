@@ -134,7 +134,9 @@ No global model change or custom-agent registration is required. Setting `"enabl
 
 - **Core procedures:** `skills/` and `references/` describe roles, contracts, evidence, and proportional task depth.
 - **Codex adapter:** `harness/codex.md`, `hooks/`, `scripts/context.py`, and `settings.json` supply host mechanics and model mapping. `harness/app-driving.md` lists app-driving options per project type.
-- **Feature map lint:** `scripts/map_lint.py [docs/verification]` checks a map's shape: required sections, typed non-empty entry points, and an index with no missing or dead entries.
+- **Feature map lint:** `scripts/map_lint.py [docs/verification] [--since <base>]` checks a map's shape (required sections, typed non-empty entry points, an index with no missing or dead entries) and, with `--since`, flags entries whose route, command, or label the change removed from the source.
+- **Evaluations:** `scripts/run_evals.py` runs blind cases against sample apps in `evaluations/fixtures/` and has a judge from a different model family score them; see [the playbook](evaluations/playbook.md).
+- **Failure log:** `docs/failure-log.md` records observed failures and the check, skill change, or map fix each became; [enforcement](references/enforcement.md) says when a repeat becomes a check.
 - **Distribution:** `.codex-plugin/plugin.json` is the Codex manifest; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace. Don't add a root `plugin.json`: Codex 0.162 loads no plugin hooks when one is present.
 
 `SessionStart` supplies bounded standing context on startup, resume, clear, and compaction. `SubagentStart` supplies delegated-work standards without turning every helper into another coordinator.
@@ -154,7 +156,7 @@ Health also lints the packaged feature-map template and this repository's own `d
 
 The health report separates package validity and hook-script execution from installation, hook trust, native context delivery, and behavioral acceptance. A valid package is not proof that your desktop loaded it.
 
-After installation, exercise the ordinary requests in [evaluations/cases.json](evaluations/cases.json) and inspect actual actions. Small edits should stay small. Discussion-only requests should stay read-only. A substantial change should receive integration checks and a fresh reviewer. Repeat after resume or compaction, and verify disablement in a fresh chat.
+After installation, exercise the ordinary requests in [evaluations/cases.json](evaluations/cases.json) and inspect actual actions. The runnable cases can be run end to end with `python3 scripts/run_evals.py` and an agent CLI plus a judge API key; [the playbook](evaluations/playbook.md) covers setup, blinding, reading results, and the stopping rule. `python3 scripts/run_evals.py --check` validates the cases without model calls. Small edits should stay small. Discussion-only requests should stay read-only. A substantial change should receive integration checks and a fresh reviewer. Repeat after resume or compaction, and verify disablement in a fresh chat.
 
 [VERIFICATION.md](VERIFICATION.md) records current checks and remaining gaps. There is no completed comparison establishing speed improvements over a single-agent workflow or PStack.
 

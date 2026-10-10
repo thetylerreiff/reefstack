@@ -1,0 +1,22 @@
+diff --git a/pantry/app.py b/pantry/app.py
+index 608e4db..5257b37 100644
+--- a/pantry/app.py
++++ b/pantry/app.py
+@@ -62,7 +62,7 @@ def render_items(items, error=""):
+ <label>Quantity <input name="quantity" type="number" min="0" value="1"></label>
+ <button type="submit">Add item</button>
+ </form>
+-<p><a href="/items/export">Download CSV</a></p>
++<p><a href="/export/items.csv">Download CSV</a></p>
+ </body>
+ </html>
+ """
+@@ -97,7 +97,7 @@ def make_handler(store):
+                 self.send(200, "ok", "text/plain")
+             elif path == "/items":
+                 self.send(200, render_items(store.items()))
+-            elif path == "/items/export":
++            elif path == "/export/items.csv":
+                 self.send(200, export_csv(store.items()), "text/csv",
+                           [("Content-Disposition", 'attachment; filename="pantry.csv"')])
+             else:

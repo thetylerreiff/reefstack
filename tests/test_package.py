@@ -25,6 +25,8 @@ class PackageTests(unittest.TestCase):
             ("VERIFICATION.md", "verification"),
             ("settings.json", "{}"),
             ("evaluations/cases.json", "[]"),
+            ("evaluations/fixtures/app/main.py", "app"),
+            ("evaluations/results/2026-10-10-run/cases/one/run-1/transcript.txt", "transcript"),
             ("CONTRIBUTING.md", "contributor notes"),
             ("assets/icon.png", "icon"),
             ("hooks/hooks.json", "hooks"),
@@ -65,12 +67,13 @@ class PackageTests(unittest.TestCase):
                 for included in (
                     "assets/icon.png", "hooks/hooks.json", "references/guide.md",
                     "scripts/package.py", "skills/example/SKILL.md", "harness/codex.md",
-                    "settings/settings.json", "tests/test.py",
+                    "settings/settings.json", "tests/test.py", "evaluations/fixtures/app/main.py",
                 ):
                     self.assertIn("reefstack/" + included, names)
                 for excluded in (
                     ".github/workflows/checks.yml", ".agents/private.md",
                     "__pycache__/secret.pyc", "build/output", ".env", "unrelated/data.txt",
+                    "evaluations/results/2026-10-10-run/cases/one/run-1/transcript.txt",
                 ):
                     self.assertNotIn("reefstack/" + excluded, names)
 

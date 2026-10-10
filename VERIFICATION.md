@@ -15,6 +15,9 @@ The local health check and unittest suite exercise:
 - Role configuration and separation of core procedures from named host/model mechanics.
 - Standalone archive layout, inclusion, exclusions, output safety, and extraction.
 - Feature-map lint: required sections and order, typed non-empty entry points, index coverage, `Last checked` statuses, CLI exit codes, and health's lint of the packaged template and any `docs/verification/`.
+- Map drift check (`--since`): a renamed route in the web fixture and a renamed subcommand in the CLI fixture are flagged in real git repositories, and clear once the map moves or the old name is kept as an alias.
+- Evaluation runner: case and fixture validation, blinding rejection, neutral workspaces, simulated port-binding denial, deterministic checks overriding the judge, judge-reply failures, the stopping rule, the judge's request shape, key handling, and the command-line transport, all with a fake agent and a mock judge. No model was called.
+- Failure log entries name an outcome and an enforcing file that exists.
 
 The icon is a square 1254-by-1254 PNG, below the documented size limit, referenced by both logo and composerIcon.
 
@@ -26,7 +29,7 @@ Isolated forward-tests with supplied startup context exercised a direct visual e
 
 The grill scenarios in `evaluations/cases.json` specify intended positive and negative routing behavior, including vague product intent, an explicit request to pressure-test, clear substantial requirements, a tiny edit, and technical uncertainty that should be researched. They are evaluation cases, not completed test results. Those case definitions do not establish grill behavior or native automatic activation. Two isolated first-turn checks with supplied startup context observed a focused bottleneck question for an ambiguous merge-bot idea with no edits, and a direct header-color edit with no interview. They do not establish adaptive follow-up behavior or native lifecycle delivery.
 
-The app-driving cases in `evaluations/cases.json` (a UI change that must be driven, a typo that must not launch the app, a sandbox-blocked launch that must be reported as blocked, a moved entry point that must update the map, and an explicit map request) are specifications, not completed runs. The lint checks a map's shape, not whether its entry points still match the app; that depends on agents following the verify procedure and on review.
+No runnable case has been run against a real agent and judge yet; there are no results in `evaluations/results/`. The app-driving cases in `evaluations/cases.json` (a UI change that must be driven, a typo that must not launch the app, a sandbox-blocked launch that must be reported as blocked, a moved entry point that must update the map, and an explicit map request) are specifications, not completed runs. The lint checks a map's shape, not whether its entry points still match the app; that depends on agents following the verify procedure and on review.
 
 Codex's `hooks/list` (0.162.0-alpha.2) returns no Reefstack hooks while a root Agent Plugins `plugin.json` exists, even with `extensions.com.openai.hooks`. With only `.codex-plugin/plugin.json`, it lists the SessionStart and SubagentStart hooks as untrusted, ready for review.
 
