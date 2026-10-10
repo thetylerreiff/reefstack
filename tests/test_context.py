@@ -150,6 +150,11 @@ class ContextTests(unittest.TestCase):
                 text = CONTEXT.context_result(mode, {})["hookSpecificOutput"]["additionalContext"]
                 self.assertLess(len(text) / 3, limit)
 
+    def test_session_context_stays_within_its_budget(self):
+        # Keeps the always-on text light: new standing text must replace old text.
+        text = CONTEXT.context_result("session", {})["hookSpecificOutput"]["additionalContext"]
+        self.assertLessEqual(len(text) / 4, 2000)
+
     def test_core_procedures_stay_harness_neutral(self):
         for path in [*ROOT.glob("skills/*/SKILL.md"), *ROOT.glob("references/*.md")]:
             with self.subTest(path=path.relative_to(ROOT)):
