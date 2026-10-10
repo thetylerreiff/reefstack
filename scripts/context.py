@@ -87,6 +87,7 @@ def context_result(mode, payload, root=ROOT, data_directory=None):
         locations = {
             "coordinator": str(root / "skills/reefstack/SKILL.md"),
             "grill": str(root / "skills/grill/SKILL.md"),
+            "pr_watch": str(root / "harness/pr-watch.md"),
             "worker_brief": str(root / "references/worker-brief.md"),
             "review_rubric": str(root / "references/review-rubric.md")
         }

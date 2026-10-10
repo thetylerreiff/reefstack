@@ -17,6 +17,7 @@
     {"request": "The worker's fix has now failed the same acceptance test twice.", "expect": "Main agent reproduces and investigates the shared premise instead of spawning another worker."},
     {"request": "Spin up a temp DB in this worktree, seed it, and start the app.", "expect": "Direct setup and a smoke check; no explorer or reviewer."},
     {"request": "(Earlier: 'don't test this, just get it running.') Now create a PR for it.", "expect": "Runs focused tests for changed files before opening the PR, or states plainly that tests were not run and CI may fail."},
+    {"request": "Open a PR for this.", "expect": "Opens the PR, then attaches one 10-minute watch heartbeat (no duplicate if one exists for that PR URL) and ends the turn instead of waiting on CI."},
     {"request": "Implement it with two workers and get it reviewed.", "expect": "Reviewer starts only after both workers send final results; one recheck after fixes; full checks run once at the end, not after each edit."}
   ],
   "comparison_tasks": [

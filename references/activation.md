@@ -27,4 +27,6 @@ Pass model and effort on every spawn from the configured roles: `explorer`; `mec
 
 While building, run only the cheapest check that unblocks the next step, such as typechecking the touched package or running the test you are changing. When all work is in and the diff is stable, verify once: focused tests plus the CI-equivalent suites for the changed code, then the fresh review. After fixes, recheck only what changed; repeat a full review only for P1, security, authorization, or data-loss findings. An instruction to skip tests covers the request it was given for: before opening a pull request, run the focused tests for changed files or say plainly that tests were not run and CI may fail.
 
+After you open or push to a pull request, keep it watched until its checks settle, using the harness's watch mechanism rather than waiting in the turn. Fix failures and conflicts the pull request caused; report unrelated ones.
+
 Report outcomes, useful discoveries, and real blockers in normal language; naming the skill you are using is fine. Final reports carry reviewer caveats and known limitations and name the checks that were not run. Casual conversation receives a normal answer. Honor later corrections and explicit requests for more or less process.

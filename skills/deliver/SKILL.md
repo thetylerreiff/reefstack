@@ -29,4 +29,6 @@ Use explorer findings as reliable leads and check the specific fact a consequent
 
 Separate transient infrastructure failures from correctness failures. A bounded infrastructure retry may be appropriate. After two corrections fail the same acceptance condition, the main agent reproduces and investigates the shared premise before another worker attempt. A contract failure blocks dependent pieces, not unrelated progress.
 
+After opening or pushing to a pull request, attach a watch through the harness instead of waiting in the turn. It follows checks and conflicts, fixes what the pull request caused, and stops when the pull request is green, merged, or closed.
+
 Use [verify](../verify/SKILL.md) for the integrated path and [review](../review/SKILL.md) for substantial changes. Fix accepted findings and recheck affected behavior. Report changed behavior, actual verification, and residual gaps, without treating worker summaries as proof.
