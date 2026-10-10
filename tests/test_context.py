@@ -71,6 +71,14 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(manifest["hooks"], "./hooks/hooks.json")
         self.assertTrue((ROOT / manifest["extensions"]["com.openai"]["onboardingSkill"]).is_file())
 
+    def test_pr_watch_reference_matches_the_codex_app_watch_format(self):
+        text = CONTEXT.context_result("session", {})["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(str(ROOT / "harness/pr-watch.md"), text)
+        template = (ROOT / "harness/pr-watch.md").read_text()
+        # The Codex app recognizes a watch by this marker and the URL line beneath it.
+        self.assertIn("## Pull request fix automation:\nRepository: <owner/repo>\nPull request: #<number>\nPull request URL: <url>\n", template)
+        self.assertIn("This is a heartbeat turn. Continue automatically fixing this pull request.", template)
+
     def test_untrusted_input_is_not_relayed(self):
         sentinel = "UNTRUSTED_PAYLOAD_SHOULD_NEVER_APPEAR"
         output = CONTEXT.context_result("subagent", {"agent_type": sentinel, "prompt": sentinel})
