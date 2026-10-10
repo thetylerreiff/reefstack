@@ -26,7 +26,7 @@ Run the [map lint](../../scripts/map_lint.py) on `docs/verification` and fix eve
 
 ## Try one entry for real
 
-Launch the app from the index, drive one feature's key path, capture evidence, clean up, and confirm the evidence survived cleanup. Record the outcome in that feature's `## Last checked`: date, revision, entry point, status (verified, unreachable, blocked, or not tried), and the evidence location. Fix map steps the run proved wrong and run the lint again. A blocked or unreachable run still ships the map, labeled as such; never record it as verified.
+Launch the app from the index, drive one feature's key path, capture evidence, clean up, and confirm the evidence survived cleanup. Record the outcome in that feature's `## Last checked`: date, revision, entry point, a `Status:` line (verified, unreachable, blocked, or not tried), and the evidence location. Fix map steps the run proved wrong and run the lint again. A blocked or unreachable run still ships the map, labeled as such; never record it as verified.
 
 ## Keep it proportional
 

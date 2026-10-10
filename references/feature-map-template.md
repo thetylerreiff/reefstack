@@ -4,10 +4,10 @@ A feature map lives in `docs/verification/` of the project being verified: one `
 
 Rules the lint enforces (`scripts/map_lint.py` in this package):
 
-- `README.md` has an H1, a non-empty `## Launch`, and a `## Features` list linking every feature file. No unlisted files, no dead links.
+- `README.md` has an H1, a non-empty `## Launch`, and a `## Features` list linking every feature file by file name. No unlisted files, no dead links.
 - Each feature file has an H1, then `## What it is`, `## How to reach it`, `## Setup`, `## Key paths`, `## Success looks like`, in that order. `## Gotchas` and `## Last checked` are optional and come last.
 - Entry points are bullets of the form ``- <kind>: `handle` `` with kind `web`, `cli`, `api`, `mobile`, `desktop`, or `other`. The handle is the real URL, command, endpoint, or screen.
-- `## Last checked` names one status: verified, unreachable, blocked, or not tried.
+- `## Last checked` has a `Status:` line with one of verified, unreachable, blocked, or not tried.
 - Lowercase-hyphenated file names, at most 80 lines each.
 
 Write from the user's point of view: entry points, stable handles (accessible names, routes, flags), required data, and observable results. Leave implementation details to the source. Record only what was actually observed in `## Last checked`, with date, revision, entry point, status, and where the evidence is. It describes one past run, not current proof.
@@ -70,5 +70,7 @@ The download is named `invoices.csv`, has a header row plus one row per seeded i
 
 ## Last checked
 
-2026-10-10, revision `4f2c9a1`, web `/invoices` export with seeded data: verified. Evidence: `/tmp/ledger-evidence/export.png`, `/tmp/ledger-evidence/invoices.csv`.
+2026-10-10, revision `4f2c9a1`, web `/invoices` export with seeded data.
+Status: verified
+Evidence: `/tmp/ledger-evidence/export.png`, `/tmp/ledger-evidence/invoices.csv`.
 ```
