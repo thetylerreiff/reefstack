@@ -13,16 +13,17 @@ Before fan-out, confirm that shared contracts are established and blocking probe
 
 - **Explorer:** you need facts spread across many files, an unknown location, or a long read whose conclusion is all you need. Several independent questions go to several explorers at once.
 - **Worker:** a substantial piece has its own writable files and an agreed contract. Two or more such pieces run in parallel.
-- **Mechanical worker:** repetitive bounded edits with a clear selection rule and a check that proves coverage. Prefer an existing codemod or script when one can do it reliably.
-- **Reviewer:** the integrated change is substantial; see [review](../review/SKILL.md).
+- **Mechanical (`mechanical` role):** repetitive bounded edits with a clear selection rule and a check that proves coverage. Prefer an existing codemod or script when one can do it reliably.
+- **Hard worker (`hard_worker` role):** cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work that would otherwise wait on the main agent.
+- **Reviewer:** the integrated change is substantial and every worker has handed back; see [review](../review/SKILL.md).
 
 ## Keep it direct when
 
-The change is small or tightly coupled, file ownership cannot be separated, the contract is still unproven, or the work is the critical-path piece you would wait on anyway. Hard cross-cutting, concurrency, or algorithmic work stays with the main agent or goes to an explicitly chosen stronger worker.
+The change is small or tightly coupled, file ownership cannot be separated, the contract is still unproven, or the work is the critical-path piece you would wait on anyway. Local environment work (temporary databases, seeding, starting servers) stays direct with no explorer or reviewer unless the user asks.
 
 ## Run it
 
-Select each helper's configured role model and effort explicitly. Launch independent helpers in the same turn, then continue main-agent work instead of waiting idle. Do not repeat work you delegated, and do not poll; inspect results as each one arrives rather than waiting for a whole batch. Respect the runtime's actual concurrency cap.
+Select each helper's configured role model and effort explicitly. Launch independent helpers in the same turn, then continue main-agent work instead of waiting idle. Do not repeat work you delegated or read inside a running explorer's scope, and do not poll; inspect results as each one arrives rather than waiting for a whole batch. Respect the runtime's actual concurrency cap.
 
 Use explorer findings as reliable leads and check the specific fact a consequential decision rests on. Review worker diffs against their acceptance checks, preserve others' changes, and integrate with boundary checks. The parent owns every accepted result.
 
