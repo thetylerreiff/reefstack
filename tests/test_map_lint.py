@@ -52,7 +52,9 @@ The confirmation page shows an order number and the order appears in `/orders`.
 
 ## Last checked
 
-2026-10-10, revision `abc1234`, web `/cart`: verified. Evidence: `/tmp/shop/checkout.png`.
+2026-10-10, revision `abc1234`, web `/cart`.
+Status: verified
+Evidence: `/tmp/shop/checkout.png`.
 """
 
 ORDERS = """# Orders API
@@ -90,6 +92,24 @@ class MapLintTests(unittest.TestCase):
 
     def test_valid_map_passes_including_route_parameters(self):
         self.assertEqual(MAP_LINT.lint_files(valid_map()), [])
+
+    def test_todo_app_handles_are_not_placeholders(self):
+        files = valid_map()
+        files["checkout.md"] = CHECKOUT.replace("`shop checkout --cart demo`", '`todo add "milk"`').replace(
+            "A signed-in shopper pays for the items in their cart.", "Todo items shown in the list.")
+        self.assertEqual(MAP_LINT.lint_files(files), [])
+
+    def test_fences_anchors_crlf_and_outside_links_are_handled(self):
+        files = valid_map()
+        files["README.md"] = INDEX.replace("## Launch\n", "## Launch\n\nSee [dev setup](../../docs/dev-setup.md).\n").replace(
+            "(./checkout.md)", "(<checkout.md> \"Checkout\")").replace("(orders-api.md)", "(orders-api.md#key-paths)") + "- Background: [API guide](../api/guide.md)\n"
+        files["checkout.md"] = CHECKOUT.replace(
+            "## Setup\n", "## Setup\n\n~~~sh\n## not a heading\nnpm run seed\n~~~\n\n```\n# nor this\n```\n")
+        files = {name: text.replace("\n", "\r\n") for name, text in files.items()}
+        self.assertEqual(MAP_LINT.lint_files(files), [])
+        files["README.md"] = files["README.md"].replace("(orders-api.md#key-paths)", "")
+        files["README.md"] += "\r\n[orders]: ./orders-api.md\r\n"
+        self.assertEqual(MAP_LINT.lint_files(files), [])
 
     def test_packaged_template_passes_its_own_lint(self):
         files = MAP_LINT.template_files(ROOT / "references/feature-map-template.md")
@@ -131,8 +151,12 @@ class MapLintTests(unittest.TestCase):
 
     def test_last_checked_needs_a_status_and_must_come_last(self):
         files = valid_map()
-        files["checkout.md"] = CHECKOUT.replace(": verified.", ": looked fine.")
-        self.assert_error(files, "must state one of: verified, unreachable, blocked, not tried")
+        for status in ("Status: looked fine", "Status: not verified", "It was verified."):
+            with self.subTest(status=status):
+                files["checkout.md"] = CHECKOUT.replace("Status: verified", status)
+                self.assert_error(files, "needs a line 'Status: <status>'")
+        files["checkout.md"] = CHECKOUT.replace("Status: verified", "Status: blocked (port 3000 denied)")
+        self.assertEqual(MAP_LINT.lint_files(files), [])
         last = CHECKOUT.index("## Last checked")
         moved = CHECKOUT[last:] + "\n" + CHECKOUT[:last]
         files["checkout.md"] = "# Checkout\n\n" + moved.replace("# Checkout\n\n", "", 1)

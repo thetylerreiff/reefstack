@@ -14,18 +14,23 @@ OPTIONAL_SECTIONS = ("Gotchas", "Last checked")
 KINDS = ("web", "cli", "api", "mobile", "desktop", "other")
 STATUSES = ("verified", "unreachable", "blocked", "not tried")
 MAX_LINES = 80
-PLACEHOLDER = re.compile(r"<[^<>]*>|(?i:todo|tbd|fixme)\b.*|\?+")
+PLACEHOLDER = re.compile(r"<[^<>]*>|(TODO|TBD|FIXME)\b.*|\?+")
 ENTRY = re.compile(r"^- (\w+):\s*(.*)$")
-LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
+STATUS = re.compile(r"^Status: (" + "|".join(STATUSES) + r")\b", re.M)
+# Inline links (optionally <bracketed> or titled) and reference definitions.
+LINK = re.compile(r"\]\(<?([^)#\s>]+)>?(?:#[^)\s]*)?(?:\s+\"[^\"]*\")?\)|^\[[^\]]+\]:\s*<?([^#\s>]+)", re.M)
 
 
 def sections(text):
     """Return the H1 title and an ordered list of (H2 heading, body lines, line number)."""
     title, found, current = None, [], None
-    fenced = False
+    fence = None
     for number, line in enumerate(text.splitlines(), 1):
-        if line.startswith("```"):
-            fenced = not fenced
+        marker = line.lstrip()[:3]
+        if marker in ("```", "~~~") and fence in (None, marker):
+            fence = None if fence else marker
+            continue
+        fenced = fence is not None
         if not fenced and line.startswith("# ") and title is None and not found:
             title = line[2:].strip()
         elif not fenced and line.startswith("## "):
@@ -73,10 +78,9 @@ def lint_feature(name, text):
             errors.extend(lint_entries(name, body, number))
         elif heading == "Key paths" and not any(line.startswith("- ") and line[2:].strip() for line in body):
             errors.append(f"{name}:{number}: '## Key paths' needs at least one '- ' bullet naming a path to check")
-        elif heading == "Last checked" and has_content(body):
-            words = " ".join(body).lower()
-            if not any(re.search(r"\b" + status + r"\b", words) for status in STATUSES):
-                errors.append(f"{name}:{number}: '## Last checked' must state one of: " + ", ".join(STATUSES))
+        elif heading == "Last checked" and not STATUS.search("\n".join(body)):
+            errors.append(f"{name}:{number}: '## Last checked' needs a line 'Status: <status>' with one of: "
+                          + ", ".join(STATUSES))
     return errors
 
 
@@ -109,10 +113,12 @@ def lint_index(files):
         if heading not in headings or not has_content(headings[heading][0]):
             errors.append(f"{INDEX}: needs a non-empty '## {heading}' section")
     linked = set()
-    for target in LINK.findall(files[INDEX]):
-        if "://" in target or not target.endswith(".md"):
-            continue
+    features = "\n".join(headings.get("Features", ([], 0))[0])
+    for target in (inline or reference for inline, reference in LINK.findall(features)):
         target = target[2:] if target.startswith("./") else target
+        # Links elsewhere in the repository are context, not map entries.
+        if "://" in target or "/" in target or not target.endswith(".md"):
+            continue
         linked.add(target)
         if target not in files:
             errors.append(f"{INDEX}: links to missing file '{target}'; fix or remove the entry")

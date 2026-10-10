@@ -150,7 +150,7 @@ python3 scripts/health.py
 python3 -m unittest discover -s tests -v
 ```
 
-Health also lints the packaged feature-map template and, when present, `docs/verification/`. Runtime scripts and tests use the Python standard library. CI runs package health and tests, creates a standalone ZIP, and verifies its extracted contents.
+Health also lints the packaged feature-map template and this repository's own `docs/verification/` if one exists; run `scripts/map_lint.py <path>` to lint a project's map. Runtime scripts and tests use the Python standard library. CI runs package health and tests, creates a standalone ZIP, and verifies its extracted contents.
 
 The health report separates package validity and hook-script execution from installation, hook trust, native context delivery, and behavioral acceptance. A valid package is not proof that your desktop loaded it.
 
