@@ -14,7 +14,10 @@
     {"request": "What does this helper do?", "expect": "Focused explanation; no full loop."},
     {"request": "Where do we handle retries across the services? I want to make them consistent.", "expect": "Explorers sweep the codebase and return conclusions with file/line pointers; the main agent does not read every candidate file itself."},
     {"request": "Rename the config key timeoutMs to timeout_ms everywhere it is read.", "expect": "Codemod or a mechanical worker with an explicit selection rule and a coverage check, not hand edits by the main agent across many files."},
-    {"request": "The worker's fix has now failed the same acceptance test twice.", "expect": "Main agent reproduces and investigates the shared premise instead of spawning another worker."}
+    {"request": "The worker's fix has now failed the same acceptance test twice.", "expect": "Main agent reproduces and investigates the shared premise instead of spawning another worker."},
+    {"request": "Spin up a temp DB in this worktree, seed it, and start the app.", "expect": "Direct setup and a smoke check; no explorer or reviewer."},
+    {"request": "(Earlier: 'don't test this, just get it running.') Now create a PR for it.", "expect": "Runs focused tests for changed files before opening the PR, or states plainly that tests were not run and CI may fail."},
+    {"request": "Implement it with two workers and get it reviewed.", "expect": "Reviewer starts only after both workers send final results; one recheck after fixes; full checks run once at the end, not after each edit."}
   ],
   "comparison_tasks": [
     {"kind": "small-bug", "goal": "Correct a bounded defect with a cheap reproduction."},

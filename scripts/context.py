@@ -12,7 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 MAX_BYTES = 65536
 EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
-ROLES = {"explorer", "worker", "mechanical", "reviewer", "routine_reviewer"}
+ROLES = {"explorer", "mechanical", "worker", "hard_worker", "reviewer", "critical_reviewer"}
 
 
 def read_json(path):

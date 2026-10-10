@@ -104,11 +104,14 @@ The main agent keeps the model and reasoning effort selected in your chat. Helpe
 
 | Role | Model | Effort |
 | --- | --- | --- |
-| Explorer | GPT-6 Luna | Medium |
-| Mechanical worker | GPT-6 Luna | Low |
-| Implementation worker | GPT-6 Luna | High |
-| Substantive reviewer | GPT-6 Astra | Medium |
-| Routine reviewer | GPT-6.1 Sol | Medium |
+| Explorer (`explorer`) | GPT-6 Luna | Medium |
+| Mechanical worker (`mechanical`) | GPT-6 Luna | Medium |
+| Implementation worker (`worker`) | GPT-6 Luna | High |
+| Hard worker (`hard_worker`): cross-cutting, concurrency, environment, debugging | GPT-6.1 Sol | High |
+| Reviewer (`reviewer`) | GPT-6 Astra | High |
+| Critical reviewer (`critical_reviewer`): auth, permissions, migrations, money, data deletion | GPT-6 Astra | Xhigh |
+
+Luna's agentic coding gains flatten after high effort, and it is weak at terminal-heavy work, so hard and environment work escalates to Sol rather than to a higher Luna effort.
 
 These are requested defaults, not guaranteed account entitlement. Custom agent profiles can override requested settings; the adapter describes that precedence. Unavailable roles should be disclosed rather than silently substituted.
 
