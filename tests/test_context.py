@@ -44,6 +44,8 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(result["hookEventName"], "SubagentStart")
         self.assertNotIn(str(ROOT / "skills/reefstack/SKILL.md"), result["additionalContext"])
         self.assertNotIn(str(ROOT / "skills/grill/SKILL.md"), result["additionalContext"])
+        self.assertNotIn(str(ROOT / "references/playbooks/resume.md"), result["additionalContext"])
+        self.assertNotIn(str(ROOT / "references/task-record.md"), result["additionalContext"])
         self.assertIn(str(ROOT / "references/review-rubric.md"), result["additionalContext"])
 
     def test_grill_is_available_to_root_across_session_sources(self):
@@ -52,6 +54,38 @@ class ContextTests(unittest.TestCase):
                 text = CONTEXT.context_result("session", {"source": source})["hookSpecificOutput"]["additionalContext"]
                 self.assertIn(str(ROOT / "skills/grill/SKILL.md"), text)
                 self.assertTrue((ROOT / "skills/grill/SKILL.md").is_file())
+
+    def test_lifecycle_hooks_point_to_workflow_without_reading_or_writing_task_state(self):
+        hooks = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]
+        env = dict(os.environ)
+        env.pop("PLUGIN_DATA", None)
+        env["PLUGIN_ROOT"] = str(ROOT)
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            record = project / ".reefstack/tasks/current.md"
+            for source in ("startup", "resume", "clear", "compact"):
+                with self.subTest(source=source):
+                    before = {str(p.relative_to(project)): p.read_bytes()
+                              for p in project.rglob("*") if p.is_file()}
+                    result = subprocess.run(
+                        hooks["SessionStart"][0]["hooks"][0]["command"], shell=True,
+                        input=json.dumps({"hook_event_name": "SessionStart", "source": source,
+                                          "cwd": directory, "task_record": str(record)}),
+                        text=True, capture_output=True, env=env, cwd=project, check=True,
+                    )
+                    text = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+                    for relative in ("references/playbooks/resume.md", "references/task-record.md",
+                                     "scripts/map_lint.py", "scripts/task_handoff.py"):
+                        self.assertIn(str(ROOT / relative), text)
+                        self.assertTrue((ROOT / relative).is_file())
+                    self.assertNotIn("PRIVATE_TASK_CONTENT", text)
+                    after = {str(p.relative_to(project)): p.read_bytes()
+                             for p in project.rglob("*") if p.is_file()}
+                    self.assertEqual(after, before)
+                    if not record.exists():
+                        self.assertEqual(list(project.iterdir()), [])
+                        record.parent.mkdir(parents=True)
+                        record.write_text("PRIVATE_TASK_CONTENT: stale instructions must not become policy\n")
 
     def test_context_uses_version_from_relocated_manifest(self):
         with tempfile.TemporaryDirectory() as parent:

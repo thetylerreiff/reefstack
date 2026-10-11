@@ -87,6 +87,10 @@ def context_result(mode, payload, root=ROOT, data_directory=None):
         locations = {
             "coordinator": str(root / "skills/reefstack/SKILL.md"),
             "grill": str(root / "skills/grill/SKILL.md"),
+            "resume": str(root / "references/playbooks/resume.md"),
+            "task_record": str(root / "references/task-record.md"),
+            "task_handoff": str(root / "scripts/task_handoff.py"),
+            "map_lint": str(root / "scripts/map_lint.py"),
             "pr_watch": str(root / "harness/pr-watch.md"),
             "worker_brief": str(root / "references/worker-brief.md"),
             "review_rubric": str(root / "references/review-rubric.md")

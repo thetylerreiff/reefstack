@@ -11,6 +11,14 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
+WORKFLOW_REFERENCES = (
+    "references/task-record.md", "references/task-record-template.md",
+    "references/playbooks/investigation.md", "references/playbooks/bug-fix.md",
+    "references/playbooks/feature.md", "references/playbooks/resume.md",
+    "references/playbooks/refactoring.md", "references/playbooks/performance.md",
+    "references/playbooks/prototype.md", "references/playbooks/opening-pr.md",
+    "references/playbooks/pr-follow-up.md", "references/playbooks/shipping.md",
+)
 
 
 def inside_file(relative):
@@ -46,6 +54,18 @@ def check_evaluations():
         raise ValueError("evaluation suite: " + "; ".join(problems))
 
 
+def check_workflow_references():
+    """Check the on-demand workflow documents, including their nested local links."""
+    for relative in WORKFLOW_REFERENCES:
+        path = inside_file(relative)
+        for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
+            if "://" in target or target.startswith("#"):
+                continue
+            local = (path.parent / target.split("#", 1)[0]).resolve()
+            if ROOT not in local.parents or not local.is_file():
+                raise ValueError("broken workflow reference in " + relative + ": " + target)
+
+
 def check_package():
     # Codex ignores hooks when a root Agent Plugins plugin.json is present.
     if (ROOT / "plugin.json").exists():
@@ -55,7 +75,7 @@ def check_package():
         raise ValueError("unexpected plugin identity")
     hooks = json.loads(inside_file(manifest["hooks"]).read_text())["hooks"]
     inside_file(manifest["extensions"]["com.openai"]["onboardingSkill"])
-    if set(hooks) != {"SessionStart", "SubagentStart"}:
+    if set(hooks) != {"SessionStart", "SubagentStart", "Stop"}:
         raise ValueError("unexpected hook events")
     session_matcher = re.compile(hooks["SessionStart"][0]["matcher"])
     if not all(session_matcher.fullmatch(source) for source in ("startup", "resume", "clear", "compact")):
@@ -97,10 +117,19 @@ def check_package():
             result = json.loads(run.stdout)["hookSpecificOutput"]
             if result["hookEventName"] != event or not result["additionalContext"]:
                 raise ValueError("hook did not return context")
+    guard = hooks["Stop"][0]["hooks"][0]
+    if guard["command"] != 'python3 "${PLUGIN_ROOT}/scripts/handoff_guard.py"':
+        raise ValueError("unexpected handoff guard command")
+    quiet = subprocess.run(guard["command"], shell=True, input='{"hook_event_name":"Stop"}',
+                           text=True, capture_output=True, timeout=5, env=env, check=True)
+    if json.loads(quiet.stdout) != {}:
+        raise ValueError("handoff guard must leave unrecorded turns alone")
     feature_map = check_feature_map()
+    check_workflow_references()
     check_evaluations()
     return {"package": "pass", "hook_handlers": "pass", "skills": names,
             "feature_map_template": "pass", "feature_map": feature_map, "evaluation_suite": "pass",
+            "workflow_references": "pass",
             "host_installation": "not_checked", "hook_trust": "not_checked",
             "native_context_delivery": "not_checked", "behavioral_evaluation": "not_checked"}
 

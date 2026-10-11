@@ -1,0 +1,54 @@
+diff --git a/tally/cli.py b/tally/cli.py
+--- a/tally/cli.py
++++ b/tally/cli.py
+@@ -86,7 +86,7 @@
+     listing = commands.add_parser("list", help="show recorded expenses")
+     listing.add_argument("--category")
+     listing.set_defaults(handler=command_list)
+-    summary = commands.add_parser("summary", help="totals per category")
++    summary = commands.add_parser("report", help="totals per category")
+     summary.set_defaults(handler=command_summary)
+     export = commands.add_parser("export", help="write all expenses as CSV")
+     export.set_defaults(handler=command_export)
+diff --git a/.reefstack/tasks/report-command.md b/.reefstack/tasks/report-command.md
+new file mode 100644
+--- /dev/null
++++ b/.reefstack/tasks/report-command.md
+@@ -0,0 +1,27 @@
++# Report command handoff
++
++## Outcome and constraints
++
++Rename `tally summary` to `tally report` without changing output. The earlier plan removes `summary` entirely. Keep the expense store and the other commands unchanged.
++
++## Current state
++
++The parser change returned by a worker is applied in `tally/cli.py`. The worker also returned test, README and command-map edits, but those hunks have not been applied to this checkout. Integration is incomplete.
++
++## Work items
++
++- [x] Apply the parser change for `report`.
++- [ ] Integrate tests and documentation.
++- [ ] Check all affected commands in this checkout.
++
++## Decisions
++
++The original request chose a clean rename with no `summary` alias. Revisit this if the user changes that requirement.
++
++## Verification
++
++The worker reported `python3 -m unittest` passing and `python3 -m tally report` printing `food 12.25` and `total 12.25` in its own checkout with throwaway data. These results predate this partial integration and are not proof of the current checkout. No local checks have been run since applying the parser hunk.
++
++## Resume
++
++Read the current instructions and inspect Git state, `tally/cli.py`, `test_tally.py`, README and `docs/verification/category-totals.md`. Confirm the user's current intent, finish the missing integration, then check the affected paths. Do not rework expense persistence.
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,5 @@
++# Tally development
++
++Use Python 3.9 or newer with the standard library. Keep the stored expense format compatible: integer cents, lowercase category, and note text.
++
++Run `python3 -m unittest` for existing behavior. Use a temporary `TALLY_HOME` for command checks so that personal expenses are not changed. Keep README commands and `docs/verification/` entry points aligned with the CLI.

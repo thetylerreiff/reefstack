@@ -1,38 +1,43 @@
 ---
 name: reefstack
-description: Coordinate substantial or consequential engineering work from ordinary conversation through preparation, implementation, integration, verification, and independent review.
+description: Route engineering work to a compact playbook, scale rigor to its consequences, and coordinate verified completion.
 ---
 
 # Reefstack
 
-Optimize time to verified completion while preserving correctness and maintainability. Keep the parent model and effort the user selected. Supporting procedures are available without requiring the user to invoke or name them.
+Optimize time to verified completion while preserving correctness and maintainability. Keep the parent model and effort the user selected. Follow the user's intent and permissions: investigation and review remain read-only, and finishing local work does not authorize publication, merging, or deployment. Preserve concurrent work.
 
-## Match the work
+## Choose the procedure and the depth separately
 
-- **Small:** obvious local changes with known behavior, such as a header color, copy edit, or simple typo. Edit directly and perform a focused check. No full skill chain, delegation, design contest, task record, or mandatory independent review.
-- **Routine:** bounded work with an understood boundary. Inspect what matters, implement, and run targeted checks. Add a supporting procedure or fresh review only when a concrete uncertainty or consequence warrants it.
-- **Substantial/consequential:** multiple dependent components, uncertain integrations, shared-state changes, persistence or permission semantics, difficult logic, broad migrations, or other meaningful blast radius. Apply the relevant procedures below, delegate where a trigger in [Deliver](../deliver/SKILL.md) applies, and independently review the integrated change.
+- **Small, obvious work:** edit directly and perform a focused check. No playbook, full skill chain, delegation, task record, or mandatory independent review.
+- **Routine, bounded work:** use the matching procedure when it helps, including a one-pass PR status check. Apply only relevant steps and targeted checks. Selecting a playbook does not require a record or delegation; use a record only for real dependencies or handoff.
+- **Substantial or consequential work:** follow the matching playbook, create or reuse one [task record](../../references/task-record.md) before implementation edits or assignments, and obtain fresh independent review. Persistence guarantees, permissions, shared state, uncertain integrations, and difficult logic can be consequential even in one file.
 
-Classify by coupling, uncertainty, impact, and verification needs, not file count or keywords. Raise or lower depth as evidence changes. Do not ask the user to choose a tier. Explicit user direction governs process within platform permissions.
+Judge depth by coupling, uncertainty, impact, and verification needs, not file count or keywords. Adjust it as evidence changes. Do not ask the user to choose a tier.
 
-## Own the flow
+## Dispatch to one compact playbook
 
-Track the current outcome, constraints, and authorization. Research, planning, diagnosis, and review stay read-only unless implementation is requested. A later correction steers the active task; it is not automatic scope expansion. Casual conversation gets a normal answer.
+Read the selected playbook before acting. Its steps own the task's sequence; supporting skills supply methods at the step that needs them. Use the existing task list or record for applicable steps and completion checks, with a short reason for a skipped step. Do not create a second tracker, force a tracker onto routine work, or run every playbook in sequence.
 
-For substantial work, read only procedures that materially apply:
+| Work | Playbook |
+| --- | --- |
+| Explain, investigate, compare, or diagnose without changes | [Investigation](../../references/playbooks/investigation.md) |
+| Reproduce and fix a defect | [Bug fix](../../references/playbooks/bug-fix.md) |
+| Add or change observable behavior | [Feature](../../references/playbooks/feature.md) |
+| Change structure while preserving observable behavior | [Refactoring](../../references/playbooks/refactoring.md) |
+| Improve a measured performance problem | [Performance](../../references/playbooks/performance.md) |
+| Build a disposable experiment to decide an approach | [Prototype](../../references/playbooks/prototype.md) |
+| Prepare and open or update an authorized pull request | [Opening a PR](../../references/playbooks/opening-pr.md) |
+| Check, fix, or watch an existing PR | [PR follow-up](../../references/playbooks/pr-follow-up.md) |
+| Land an explicitly authorized PR or ordered stack | [Shipping](../../references/playbooks/shipping.md) |
+| Continue an existing task after handoff, interruption, or lost context | [Resume](../../references/playbooks/resume.md), then its original playbook's remaining steps |
 
-- [Grill](../grill/SKILL.md) when the user asks to pressure-test an idea, or unresolved intent/product choices could materially change the outcome. Use it before technical design, not for every feature. Clear requirements and small edits skip it; investigate factual uncertainty instead of interviewing the user about it.
-- [Ground](../ground/SKILL.md) when source behavior or integration assumptions need establishing.
-- [Design](../design/SKILL.md) when callers, shared shapes, ownership, or an architectural choice need settling.
-- [Diagnose](../diagnose/SKILL.md) for a defect or repeated failed acceptance condition.
-- [Deliver](../deliver/SKILL.md) for implementation and coordination.
-- [Verify](../verify/SKILL.md) for behavioral proof and evidence.
-- [Review](../review/SKILL.md) for independent scrutiny of the integrated change.
+A behavior-preserving migration is Refactoring; a read-only performance question is Investigation. Switch procedures only when the task changes within user authorization. A request to run Reefstack's own evaluation cases uses the existing [evaluation procedure](../../evaluations/playbook.md).
 
-These responsibilities overlap; they are not a mandatory serial ritual. Prove blocking boundaries before dependent fan-out. Main-agent work, explorers, independent workers, and independent checks should overlap: launch independent helpers in the same turn and keep the critical path moving while they run. Integrate continuously and verify once the work is in, not after each edit. When shared assumptions fail, stop affected work and correct the contract rather than adding workers.
+## Use supporting methods when needed
 
-Keep a compact task record only when dependencies or handoff make it useful. Record outcome, constraints, ownership, current artifact state, unresolved findings, and checks. Keep it in the authorized workspace, not global memory. Do not create records for trivial edits.
+[Grill](../grill/SKILL.md) resolves consequential product choices or a requested pressure test; clear requirements skip it. [Ground](../ground/SKILL.md) establishes source-backed facts. [Design](../design/SKILL.md) settles caller contracts and ownership. [Diagnose](../diagnose/SKILL.md) isolates failure mechanisms. [Deliver](../deliver/SKILL.md) defines delegation and integration mechanics. [Verify](../verify/SKILL.md) defines adequate behavioral evidence, app driving, and verification-map checks. [Review](../review/SKILL.md) defines independent scrutiny and finding resolution. These are tools for the selected procedure, not a mandatory chain.
 
-The session context supplies the configured role defaults (explorer, mechanical, worker, heavy_worker, reviewer, critical_reviewer) and any harness-specific mechanics. If unavailable, read [settings.json](../../settings.json). Explicitly select both model and effort for every helper when supported. Do not silently substitute an unavailable model. Use the selected parent as the disclosed fallback when appropriate; record that a preferred review model was unavailable. Do not change global model settings.
+The session supplies role models, efforts, and host mechanics; otherwise read [settings.json](../../settings.json). Select both model and effort for helpers. Disclose unavailable models and any fallback; do not change global settings.
 
-Conclude with the result and material evidence. Report unresolved checks honestly. Preserve the user's merge/deployment boundaries. Carry reviewer caveats and known limitations into the final report, and name the checks that were not run.
+Keep the task record current at meaningful boundaries. For recorded work, finish its [readback and exact-link handoff](../../references/task-record.md#close-the-record-then-hand-it-off). Conclude with actual results, evidence, unresolved checks, and reviewer caveats. Never turn missing proof into a pass.

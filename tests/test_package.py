@@ -23,6 +23,8 @@ class PackageTests(unittest.TestCase):
             ("README.md", "readme"),
             ("LICENSE", "license"),
             ("VERIFICATION.md", "verification"),
+            ("docs/failure-log.md", "public regression history used by shipped tests"),
+            ("docs/private-notes.md", "private notes"),
             ("settings.json", "{}"),
             ("evaluations/cases.json", "[]"),
             ("evaluations/fixtures/app/main.py", "app"),
@@ -31,6 +33,11 @@ class PackageTests(unittest.TestCase):
             ("assets/icon.png", "icon"),
             ("hooks/hooks.json", "hooks"),
             ("references/guide.md", "guide"),
+            ("references/task-record.md", "record procedure"),
+            ("references/task-record-template.md", "record template"),
+            ("references/playbooks/resume.md", "resume procedure"),
+            (".reefstack/tasks/private-task.md", "local task state"),
+            (".reefstack/tasks/private-task-evidence/output.txt", "local evidence"),
             ("scripts/package.py", "builder"),
             ("skills/example/SKILL.md", "skill"),
             ("harness/codex.md", "harness"),
@@ -68,12 +75,17 @@ class PackageTests(unittest.TestCase):
                     "assets/icon.png", "hooks/hooks.json", "references/guide.md",
                     "scripts/package.py", "skills/example/SKILL.md", "harness/codex.md",
                     "settings/settings.json", "tests/test.py", "evaluations/fixtures/app/main.py",
+                    "references/task-record.md", "references/task-record-template.md",
+                    "references/playbooks/resume.md",
+                    "docs/failure-log.md",
                 ):
                     self.assertIn("reefstack/" + included, names)
                 for excluded in (
                     ".github/workflows/checks.yml", ".agents/private.md",
                     "__pycache__/secret.pyc", "build/output", ".env", "unrelated/data.txt",
                     "evaluations/results/2026-10-10-run/cases/one/run-1/transcript.txt",
+                    ".reefstack/tasks/private-task.md", ".reefstack/tasks/private-task-evidence/output.txt",
+                    "docs/private-notes.md",
                 ):
                     self.assertNotIn("reefstack/" + excluded, names)
 

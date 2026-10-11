@@ -80,6 +80,31 @@ flowchart LR
 
 These are responsibilities, not mandatory serial steps. Independent reads, implementation, and checks can overlap. Uncertain shared contracts are resolved before dependent workers start. Repeated correctness failures return to the main agent for investigation rather than another blind retry. After Codex opens or pushes to a pull request, it attaches the same 10-minute heartbeat as the app's "Watch and fix PR" button, so checks and conflicts the pull request caused are fixed without another prompt. Pause it from the pull request panel. Settings → Git → "Pull request watch instructions" overrides its defaults.
 
+### Compact playbooks and task records
+
+Task type selects the procedure; uncertainty and consequences set the depth. The selected playbook owns the sequence, with outputs and completion checks. Skills supply reusable methods; the harness supplies host mechanics. Use an existing task list or record when needed, with reasons for skipped steps. Routine work can use a procedure without a record or delegation. Small, obvious edits still go straight to the change and a focused check.
+
+| Task | Playbook |
+| --- | --- |
+| Explain behavior without changing it | [Investigation](references/playbooks/investigation.md) |
+| Reproduce and repair a defect | [Bug fix](references/playbooks/bug-fix.md) |
+| Add or change behavior | [Feature](references/playbooks/feature.md) |
+| Restructure while preserving behavior | [Refactoring](references/playbooks/refactoring.md) |
+| Improve a measured performance problem | [Performance](references/playbooks/performance.md) |
+| Try an approach to inform a decision | [Prototype](references/playbooks/prototype.md) |
+| Prepare an authorized PR | [Opening a PR](references/playbooks/opening-pr.md) |
+| Assess, fix, or watch an existing PR | [PR follow-up](references/playbooks/pr-follow-up.md) |
+| Land an authorized PR or ordered stack | [Shipping](references/playbooks/shipping.md) |
+| Recover an ongoing task | [Resume](references/playbooks/resume.md) |
+
+Refactoring pins existing behavior; performance work compares reproducible measurements; prototypes remain experimental until production work is authorized. PR follow-up owns Check, Fix, and Watch policy; its harness only schedules bounded passes. Watch alone is observation-only, while authorized PR creation or pushes default to repair monitoring unless narrowed. Paused watches stay paused without a resumption request. Completing local work does not automatically open a PR, a status request remains read-only, and permission to open or fix a PR does not authorize merging or deployment.
+
+Substantial authorized implementation starts one [task record](references/task-record.md) before implementation, reusing an existing task document or starting from the [template](references/task-record-template.md) at `.reefstack/tasks/<task-slug>.md`. It holds the outcome and authorization, work items and dependencies, decisions, verification evidence, and the next action. The current top-level coordinator owns it, including after restart, and updates it at meaningful boundaries; assigned workers return results and receipts. A worker's returned result is not yet integrated or verified. Records and their evidence stay local by default and are excluded from release archives.
+
+The [resume playbook](references/playbooks/resume.md) reconciles that record with current user instructions, Git state, and evidence. It preserves completed work, rechecks affected or missing evidence, and continues the first unfinished dependency. An unrelated record does not turn a fresh request into a resumed task. Read-only investigation or pickup creates no record without authorization to write an artifact.
+
+Records are maintained by the agent, not by the lifecycle hooks. Hook delivery restores workflow guidance; it does not automatically recover task state. No new service, database, or global configuration is needed.
+
 Routine or larger changes to a UI, CLI, or API are proven by using the running app: a browser for web apps, real commands for CLIs, real requests for APIs, a simulator for mobile. Each changed path is reported as verified, unreachable, blocked, or not tried, with screenshots, command output, or saved responses; only verified counts as a pass. Trivial edits don't launch anything. Ask to "set up a way for agents to test this app" and Reefstack writes a feature map in `docs/verification/`, lints it, and tries one entry for real; later changes use the map and keep it current when an entry point moves.
 
 Discussion, planning, diagnosis, and review remain read-only unless you authorize changes. Reefstack does not grant permission to deploy, alter shared data, contact people, or expand the task.
@@ -132,16 +157,19 @@ No global model change or custom-agent registration is required. Setting `"enabl
 
 ## Architecture
 
-- **Core procedures:** `skills/` and `references/` describe roles, contracts, evidence, and proportional task depth.
+- **Core procedures:** `skills/` and `references/` describe roles, contracts, evidence, and proportional task depth. `references/playbooks/` supplies compact execution paths; `references/task-record.md` defines durable task state and its lifecycle.
 - **Codex adapter:** `harness/codex.md`, `hooks/`, `scripts/context.py`, and `settings.json` supply host mechanics and model mapping. `harness/app-driving.md` lists app-driving options per project type.
 - **Feature map lint:** `scripts/map_lint.py [docs/verification] [--since <base>]` checks a map's shape (required sections, typed non-empty entry points, an index with no missing or dead entries) and, with `--since`, flags entries whose route, command, or label the change removed from the source.
 - **Evaluations:** `scripts/run_evals.py` runs blind cases against sample apps in `evaluations/fixtures/` and has a judge from a different model family score them; see [the playbook](evaluations/playbook.md).
+- **Task handoff:** `scripts/task_handoff.py <record>` reads the final saved record, emits its content hash and absolute Markdown link, and leaves files unchanged. Recorded tasks use it after their last record edit and copy its standalone `Record:` line into the final response; small tasks skip it.
+- **Native hook probe:** `scripts/run_hook_delivery.py` tests native startup, compaction, fresh-process resume, and child-agent context with invocation-only configuration; see [the hook delivery guide](harness/hook-delivery.md) for isolation and scope.
+- **Native lifecycle probe:** `scripts/run_lifecycle.py` exercises real compaction and a child app-server restart on a staged task, using supplied current guidance; see [the lifecycle guide](harness/lifecycle.md) for scope and evidence limits.
 - **Failure log:** `docs/failure-log.md` records observed failures and the check, skill change, or map fix each became; [enforcement](references/enforcement.md) says when a repeat becomes a check.
 - **Distribution:** `.codex-plugin/plugin.json` is the Codex manifest; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace. Don't add a root `plugin.json`: Codex 0.162 loads no plugin hooks when one is present.
 
-`SessionStart` supplies bounded standing context on startup, resume, clear, and compaction. `SubagentStart` supplies delegated-work standards without turning every helper into another coordinator.
+`SessionStart` supplies bounded standing context on startup, resume, clear, and compaction. `SubagentStart` supplies delegated-work standards without turning every helper into another coordinator. `Stop` checks a handoff only after the current turn ran the task-record helper, and can request one correction of a stale readback or invalid final link.
 
-The hooks read local packaged files and optional user settings. They do not make network calls, inspect transcripts, run models, edit your repository, rewrite global instructions, or impose a completion loop. No MCP server, API key, or third-party account is required by the hook scripts themselves.
+The context hooks read packaged files and optional user settings. The handoff guard reads a bounded native transcript tail and the current task record; it never writes either. It skips turns without an observed helper call and limits automatic correction to one continuation. Hook scripts make no network calls, run no models, edit no repository files, and rewrite no global instructions. No MCP server, API key, or third-party account is required by the hook scripts themselves.
 
 ## Verification
 
@@ -166,7 +194,7 @@ After installation, exercise the ordinary requests in [evaluations/cases.json](e
 python3 scripts/package.py --output ../reefstack-plugin.zip
 ```
 
-The archive contains one top-level `reefstack/` plugin directory with its icon, manifest, skills, hooks, and supporting files. It excludes Git history, CI configuration, the marketplace, caches, and local configuration. The builder refuses to overwrite an existing file.
+The archive contains one top-level `reefstack/` plugin directory with its icon, manifest, skills, hooks, and supporting files. It excludes Git history, CI configuration, the marketplace, caches, local configuration, and `.reefstack/tasks/` records and evidence. The builder refuses to overwrite an existing file.
 
 ## Update or disable
 

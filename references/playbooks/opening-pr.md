@@ -1,0 +1,11 @@
+# Opening a pull request
+
+Use when the user authorizes opening or updating a pull request for the current work. A request to finish a local task does not by itself authorize a push or pull request. Follow the active host's equivalent repository and pull request mechanics; do not add scripts for a host-specific workflow.
+
+1. **Confirm scope and preserve the checkout.** Read the current branch, base, working tree, and existing pull requests for the branch. Keep unrelated local edits intact. **Output:** intended head and base, relevant dirty files, and any matching pull request. **Check:** the proposed change is within the user's authorization; no unrelated edits are included.
+2. **Review the exact change.** Compare the intended head with its base and inspect the full diff, including staged, unstaged, and committed changes that would be included. Run the checks relevant to this change. **Output:** reviewed diff and check results. **Check:** the diff contains only intended work, and failures or unrun checks are recorded accurately.
+3. **Prepare the pull request.** Write a focused title and body describing the resulting behavior, evidence from relevant checks, and any remaining gaps. **Output:** reviewable title, body, and target branch. **Check:** claims match the inspected diff and actual results.
+4. **Open or update once.** Create the pull request if none exists for this work; otherwise update the matching pull request. Push only the authorized work needed for that pull request. **Output:** pull request URL and current head/base. **Check:** no duplicate pull request was created and the remote change matches the reviewed diff.
+5. **Attach and hand off.** Attach the pull request to the task when the host supports it. Transition to [PR follow-up](pr-follow-up.md), which owns the default watch policy and its exceptions. **Output:** attached PR with confirmed remote head/base and follow-up status or limitation. **Completion check:** the remote diff matches the reviewed change; pending CI is handed off explicitly rather than claimed as passed. No merge or release is implied.
+
+For substantial work, maintain the canonical task record described in [Task record](../task-record.md), and use its shared final handoff helper after the last record edit.

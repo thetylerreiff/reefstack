@@ -23,7 +23,7 @@ INCLUDED_DIRECTORIES = (
     "skills",
     "tests",
 )
-INCLUDED_FILES = {"README.md", "LICENSE", "VERIFICATION.md", "settings.json"}
+INCLUDED_FILES = {"README.md", "LICENSE", "VERIFICATION.md", "settings.json", "docs/failure-log.md"}
 EXCLUDED_DIRECTORY_NAMES = {
     ".agents", ".git", ".github", ".venv", "__pycache__", "build", "cache",
     "caches", "dist", "node_modules", "target", "venv",

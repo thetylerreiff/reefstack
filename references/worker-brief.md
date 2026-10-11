@@ -10,11 +10,13 @@ For a small task, one paragraph that still names goal, scope, verify, and report
 GOAL        one sentence, the observable outcome
 SCOPE       paths it may write; paths others own (it is not alone; preserve their edits)
 CONTEXT     contract files, data shapes, fixtures; upstream findings pasted in full
+            for tracked work: task item, dependency/contract revision, record path (read-only)
 ACCEPTANCE  checkable criteria, one per line; for any matcher or heuristic, inputs that
             must match and inputs that must not
 VERIFY      exact commands, plus known environment gaps
 FORBIDDEN   no edits outside scope, no shared-interface changes, no rebases or force-pushes
-REPORT      changes, checks actually run with results, deviations, open problems
+REPORT      changes, artifact revision including dirty state, checks and evidence paths,
+            deviations, open problems; coordinator updates the canonical task record
 ```
 
 Stop and report a contract problem immediately; after two failed corrections of the same acceptance condition, return evidence instead of retrying. Keep coupled implementation under one owner; when ownership cannot be separated, serialize or do it in the main agent. A follow-up restates the full current contract, or goes to a fresh helper with it.
