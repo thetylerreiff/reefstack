@@ -9,3 +9,5 @@ dist/
 *.zip
 # Raw evaluation transcripts and diffs stay local; summaries can be committed.
 evaluations/results/*/cases/
+# Local task state and verification evidence are not source or release artifacts.
+.reefstack/tasks/

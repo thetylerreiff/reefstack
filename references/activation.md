@@ -1,32 +1,15 @@
 # Reefstack is available by default
 
-For engineering work, optimize elapsed time to a verified, maintainable result. Cost is secondary. Adapt to the user's natural conversation; no command, mode selection, or ritual is needed. These are defaults within the platform's permissions, applicable repository instructions, and the user's requested scope. They do not authorize additional actions. Discussion, planning, investigation, and review remain read-only unless the user requests changes.
+Optimize time to verified, maintainable completion. Adapt to ordinary conversation; no command or mode selection is required. These defaults stay within user intent, platform permissions, and repository instructions. Investigation, planning, and review remain read-only unless changes are requested. Preserve concurrent work; local completion does not authorize publishing, merging, or deployment.
 
-Choose depth internally. An obvious local change, such as a header color or typo, gets a direct edit and a focused check. Do not load the full skill chain, delegate, create a task ledger, run unrelated checks, or require independent review for that path. Routine bounded work gets relevant inspection and targeted checks; add rigor only for a concrete uncertainty or consequence.
+An obvious small edit takes the direct path: edit and perform a focused check. No playbook, full skill chain, delegation, task record, or required independent review. Routine work gets targeted checks and only useful procedure steps; choosing a playbook does not itself require a record or helpers. Local environment setup stays direct.
 
-Substantial or consequential implementation uses the coordinator skill below. Signals include interdependent components, uncertain external boundaries, shared state, permissions, persistence, difficult algorithms, or a need for integration proof. File count and the word 'feature' are not routing rules. A small diff can still have large consequences.
+For other engineering work, read the coordinator below and select the playbook for the task type. The playbook owns sequencing; supporting skills provide methods. Scale rigor by uncertainty and consequences, not file count. Substantial implementation needs one durable task record with acceptance checks before implementation edits or assignments, and fresh independent review. Routine work needs a record only for dependencies or handoff; read-only work writes none without artifact authorization.
 
-Use grill before technical design when the user asks for a pressure test or an unresolved product choice could materially change substantial work. Clear requirements and small edits skip it.
+For continuation, use the named task's Resume playbook before dependent work; an unrelated record is not a new assignment. The current top-level agent owns the record. For recorded work, follow the shared final handoff: run the task_handoff helper after the last record edit, inspect its saved-text readback, and copy the final standalone Record line verbatim into the final response.
 
-Local environment work (temporary databases, seeding, starting or restarting servers) is routine: do it directly, with no explorer or reviewer unless the user asks.
+Use the coordinator's supporting methods only as needed. Grill resolves consequential product choices, not discoverable facts. Deliver defines delegation triggers, ownership, and integration. Verify defines relevant tests, app driving, verification-map maintenance and lint, and evidence. Review defines fresh independent review after workers finish. The selected playbook determines when these apply.
 
-## Orchestrate
+After authorized PR creation or updates, follow PR follow-up's watch policy through the packaged pr_watch reference; honor status-only requests and paused watches. The harness provides scheduling mechanics, not additional authority.
 
-The main agent owns intent, contracts, the critical path, integration, and the result. Keep its selected model and effort. Its context is the scarcest resource in a long task: keep conclusions in it, not file dumps. Spawn a helper whenever one of these triggers applies:
-
-- **Explorer** (read-only): the answer needs a sweep of more than a few files, an unknown location or naming convention, or a long log or document read where only the conclusion matters. Ask a bounded question and use its findings instead of re-reading the same files.
-- **Workers**: two or more substantial pieces with separate writable files and an agreed contract. Launch them in the same turn and keep working the critical path while they run.
-- **Mechanical worker**: repetitive bounded edits that no existing codemod or script handles, with explicit scope and acceptance checks.
-- **Reviewer** (fresh, read-only): every substantial change, started only after every worker has sent its final result and edits have stopped.
-
-Work directly when the change is small, tightly coupled, or on the critical path you are about to touch anyway, and when a shared contract is still unproven: prove it first, then fan out. Do not also run work you delegated or read inside a running explorer's scope, and do not poll helpers; integrate results as they arrive. Treat explorer findings as reliable leads and check the specific fact a consequential decision rests on. Verify worker diffs against their acceptance checks before accepting them. Repeated correctness failures return to the main agent for investigation.
-
-Pass model and effort on every spawn from the configured roles: `explorer`; `mechanical` for repetitive edits; `worker` for implementation; `heavy_worker` for cross-cutting, concurrency, algorithmic, environment, test-infrastructure, or debugging work; `reviewer` by default; `critical_reviewer` when the change touches authentication, permissions, migrations, money, or data deletion.
-
-## Verify once, late
-
-While building, run only the cheapest check that unblocks the next step, such as typechecking the touched package or running the test you are changing. When all work is in and the diff is stable, verify once: focused tests plus the CI-equivalent suites for the changed code, then the fresh review. After fixes, recheck only what changed; repeat a full review only for P1, security, authorization, or data-loss findings. Routine or larger UI, CLI, or API changes: drive the changed paths in the running app per verify (trivial edits skip it; a blocked launch is never a pass). A moved entry point updates an existing `docs/verification/` in the same change. A mistake seen twice becomes a check, not another rule. Note whether each user instruction covers this request or the whole session. A skip-tests instruction covers only its request: before opening a pull request, run the focused tests for changed files or say plainly that they were not run.
-
-After you open or push to a pull request, keep it watched until its checks settle, using the harness's watch mechanism rather than waiting in the turn. Fix failures and conflicts the pull request caused; report unrelated ones.
-
-Report outcomes, useful discoveries, and real blockers in normal language; naming the skill you are using is fine. Every claim carries its evidence or a label (ran, inferred, or guess); final reports carry reviewer caveats and name checks that were not run. Never hand the user a check you could run. Casual conversation receives a normal answer. Honor later corrections and explicit requests for more or less process.
+Keep the selected parent model and effort. Use configured roles for helpers and report unavailable models or fallbacks. Report actual outcomes and evidence, remaining gaps, reviewer caveats, and checks not run. A blocked check is never a pass. Honor later user corrections and requests for more or less process.

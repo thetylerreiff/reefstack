@@ -6,12 +6,14 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
 from unittest import mock
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,6 +33,17 @@ FAKE_AGENT = textwrap.dedent('''
     app = pathlib.Path("pantry/app.py")
     if "Quantitiy" in prompt:
         app.write_text(app.read_text().replace("Quantitiy", "Quantity"))
+    if os.environ.get("FAKE_TASK_RECORD"):
+        record = pathlib.Path(".reefstack/tasks/header.md")
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text("Fix the header.\\n")
+        if os.environ.get("FAKE_IGNORED_TASK_RECORD"):
+            with pathlib.Path(".git/info/exclude").open("a") as exclude:
+                exclude.write("\\n.reefstack/tasks/\\n")
+            record.write_text("FINAL_LOCAL_RECORD: import implemented and verified.\\n")
+            evidence = record.parent / "header-evidence/output.txt"
+            evidence.parent.mkdir()
+            evidence.write_text("SAVED_LOCAL_EVIDENCE: all rows validated before saving.\\n")
     if "/export/items.csv" in prompt:
         app.write_text(app.read_text().replace('"/items/export"', '"/export/items.csv"'))
         if os.environ.get("FAKE_UPDATE_MAP"):
@@ -100,9 +113,60 @@ class RunEvalsTests(unittest.TestCase):
         self.assertEqual(RUN_EVALS.validate_suite(), [])
         for required in ("web-ui-change-driven", "web-typo-no-launch", "web-launch-blocked",
                          "web-route-moved-updates-map", "cli-command-renamed-updates-map",
-                         "review-flags-stale-map", "review-fix-refreshes-map"):
+                         "review-flags-stale-map", "review-fix-refreshes-map",
+                         "workflow-substantial-record", "workflow-resume-new-constraint",
+                         "workflow-read-only-pickup", "playbook-refactor-preserves-behavior",
+                         "playbook-performance-measured", "playbook-prototype-disposable"):
             self.assertIn(required, CASES)
-        self.assertEqual({case["fixture"] for case in CASES.values()}, {"pantry", "tally"})
+        self.assertEqual({case["fixture"] for case in CASES.values()}, {"pantry", "tally", "dispatch"})
+
+    def test_live_trial_map_mistakes_fail_until_repaired(self):
+        # Replay the two actual map defects from the import and resume probes.
+        # The app may work; neither defect should pass the workflow check.
+        case = CASES["workflow-resume-new-constraint"]
+        project, base, head = RUN_EVALS.prepare_workspace(
+            case, ROOT / "evaluations/fixtures", self.temp)
+        feature = project / "docs/verification/category-totals.md"
+        original = feature.read_text()
+        alias_map = original.replace(
+            "- cli: `python3 -m tally summary`",
+            "- cli: `python3 -m tally report`\n"
+            "- cli alias: `python3 -m tally summary` (identical output)")
+        self.assertNotEqual(alias_map, original)
+        feature.write_text(alias_map)
+        checks = RUN_EVALS.run_checks(case, project, base, head)
+        self.assertFalse(checks["map_lint"]["passed"])
+        self.assertIn("write entry points", checks["map_lint"]["detail"])
+        feature.write_text(alias_map.replace("- cli alias:", "- cli:"))
+        self.assertTrue(RUN_EVALS.run_checks(case, project, base, head)["map_lint"]["passed"])
+
+        repaired = feature.read_text()
+        feature.write_text(repaired.replace("## What it is\n", ""))
+        checks = RUN_EVALS.run_checks(case, project, base, head)
+        self.assertFalse(checks["map_lint"]["passed"])
+        self.assertIn("missing section(s) ## What it is", checks["map_lint"]["detail"])
+        feature.write_text(repaired)
+        self.assertTrue(RUN_EVALS.run_checks(case, project, base, head)["map_lint"]["passed"])
+
+
+    def test_import_case_requires_new_command_coverage_not_just_valid_shape(self):
+        case = CASES["workflow-substantial-record"]
+        project, base, head = RUN_EVALS.prepare_workspace(
+            case, ROOT / "evaluations/fixtures", self.temp)
+        checks = RUN_EVALS.run_checks(case, project, base, head)
+        self.assertTrue(checks["map_lint"]["passed"])
+        self.assertFalse(checks["import_map_entry"]["passed"])
+        feature = project / "docs/verification/category-totals.md"
+        original = feature.read_text()
+        for decoy in ("\n`tally import file.csv`\n", "\n- cli: `tally import file.csv`\n"):
+            feature.write_text(original + decoy)
+            self.assertFalse(RUN_EVALS.run_checks(case, project, base, head)["import_map_entry"]["passed"])
+        feature.write_text(original.replace(
+            "## How to reach it\n", "## How to reach it\n\n- cli: `python3 -m tally import expenses.csv`\n"))
+        checks = RUN_EVALS.run_checks(case, project, base, head)
+        self.assertTrue(checks["map_lint"]["passed"])
+        self.assertTrue(checks["import_map_entry"]["passed"])
+
 
     def test_blinding_rejects_meta_words_in_prompts_names_and_files(self):
         fixtures = self.temp / "fixtures"
@@ -133,6 +197,195 @@ class RunEvalsTests(unittest.TestCase):
         project, _, _ = RUN_EVALS.prepare_workspace(CASES["cli-map-setup"], ROOT / "evaluations/fixtures",
                                                     self.temp / "other")
         self.assertFalse((project / "docs/verification").exists())
+
+    def test_procedure_cases_start_from_runnable_unmodified_dispatch_project(self):
+        for name in ("playbook-refactor-preserves-behavior", "playbook-performance-measured",
+                     "playbook-prototype-disposable"):
+            with self.subTest(case=name):
+                project, base, head = RUN_EVALS.prepare_workspace(
+                    CASES[name], ROOT / "evaluations/fixtures", self.temp / name)
+                self.assertEqual(base, head)
+                self.assertEqual(project.name, "dispatch")
+                self.assertFalse((project / "scratch").exists())
+                # The only tests visible to the agent are the ordinary project's
+                # checks; the outer acceptance suite and criteria are held out.
+                self.assertFalse((project / "test_playbook_behavior.py").exists())
+                env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+                result = subprocess.run([sys.executable, "-m", "unittest", "-v"],
+                                        cwd=project, env=env, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(RUN_EVALS.git(project, "status", "--porcelain"), "")
+                self.assertEqual(RUN_EVALS.run_checks(CASES[name], project, base, head), {})
+
+    def test_workflow_handoff_is_applied_to_a_real_git_project(self):
+        for name in ("workflow-resume-new-constraint", "workflow-read-only-pickup"):
+            with self.subTest(case=name):
+                case = CASES[name]
+                project, base, head = RUN_EVALS.prepare_workspace(
+                    case, ROOT / "evaluations/fixtures", self.temp / name)
+                self.assertNotEqual(base, head)
+                self.assertEqual(RUN_EVALS.git(project, "status", "--porcelain"), "")
+                record = project / ".reefstack/tasks/report-command.md"
+                self.assertTrue(record.is_file())
+                self.assertIn("not proof of the current checkout", record.read_text())
+                self.assertIn('run_cli("summary")', (project / "test_tally.py").read_text())
+                env = {**os.environ, "TALLY_HOME": str(self.temp / (name + "-data"))}
+                for args, status in ((("add", "12.25", "food"), 0), (("report",), 0),
+                                     (("summary",), 2)):
+                    result = subprocess.run([sys.executable, "-m", "tally", *args], cwd=project,
+                                            env=env, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    if args == ("report",):
+                        self.assertEqual(result.stdout.splitlines()[-1].split(), ["total", "12.25"])
+                # This is genuinely incomplete integration, not merely stale prose.
+                result = subprocess.run([sys.executable, "-m", "unittest"], cwd=project,
+                                        env=env, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("test_summary_totals_per_category", result.stderr)
+                check = {"checks": ["no_edits"]}
+                self.assertTrue(RUN_EVALS.run_checks(check, project, base, head)["no_edits"]["passed"])
+                record.write_text(record.read_text() + "\nAll done.\n")
+                self.assertFalse(RUN_EVALS.run_checks(check, project, base, head)["no_edits"]["passed"])
+
+    def test_no_edits_rejects_staged_untracked_and_committed_handoff_changes(self):
+        for change in ("staged", "untracked", "committed"):
+            with self.subTest(change=change):
+                case = CASES["workflow-read-only-pickup"]
+                project, base, head = RUN_EVALS.prepare_workspace(
+                    case, ROOT / "evaluations/fixtures", self.temp / change)
+                record = project / ".reefstack/tasks/next.md"
+                record.write_text("Next: finish command integration.\n")
+                if change != "untracked":
+                    RUN_EVALS.git(project, "add", "-A")
+                if change == "committed":
+                    RUN_EVALS.git(project, "commit", "-q", "-m", "Record next step")
+                result = RUN_EVALS.run_checks(case, project, base, head)["no_edits"]
+                self.assertFalse(result["passed"])
+                self.assertIn("new commits" if change == "committed" else "working tree changed",
+                              result["detail"])
+
+    def test_no_task_record_finds_ignored_and_committed_records(self):
+        case = CASES["web-typo-no-launch"]
+        project, base, head = RUN_EVALS.prepare_workspace(
+            case, ROOT / "evaluations/fixtures", self.temp / "small")
+        check = {"checks": ["no_task_record"]}
+        app = project / "pantry/app.py"
+        app.write_text(app.read_text().replace("Quantitiy", "Quantity"))
+        self.assertTrue(RUN_EVALS.run_checks(check, project, base, head)["no_task_record"]["passed"])
+        with (project / ".gitignore").open("a") as stream:
+            stream.write("\n.reefstack/\n")
+        record = project / ".reefstack/tasks/header.md"
+        record.parent.mkdir(parents=True)
+        record.write_text("Fix the header.\n")
+        for committed in (False, True):
+            if committed:
+                RUN_EVALS.git(project, "add", "-f", ".reefstack/tasks/header.md")
+                RUN_EVALS.git(project, "commit", "-q", "-m", "Record header work")
+            result = RUN_EVALS.run_checks(check, project, base, head)["no_task_record"]
+            self.assertFalse(result["passed"])
+            self.assertIn(".reefstack/tasks/header.md", result["detail"])
+
+    def test_workflow_patches_survive_release_packaging_and_stay_blind(self):
+        package = RUN_EVALS.load_module("workflow_package", ROOT / "scripts/package.py")
+        archive_path = self.temp / "plugin.zip"
+        package.build_archive(archive_path)
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertIn("reefstack/evaluations/fixtures/patches/workflow-report-handoff.patch",
+                          archive.namelist())
+            archive.extractall(self.temp / "release")
+        release = self.temp / "release/reefstack"
+        runner = RUN_EVALS.load_module("packaged_workflow_runner", release / "scripts/run_evals.py")
+        self.assertEqual(runner.validate_suite(), [])
+        cases = {case["id"]: case for case in runner.load_cases()}
+        case = cases["workflow-read-only-pickup"]
+        project, base, head = runner.prepare_workspace(case, release / "evaluations/fixtures",
+                                                      self.temp / "from-release")
+        self.assertTrue((project / ".reefstack/tasks/report-command.md").is_file())
+        self.assertTrue(runner.run_checks(case, project, base, head)["no_edits"]["passed"])
+
+    def test_no_task_record_rejects_a_replaced_record_directory(self):
+        case = CASES["web-typo-no-launch"]
+        project, base, head = RUN_EVALS.prepare_workspace(
+            case, ROOT / "evaluations/fixtures", self.temp / "replaced")
+        directory = project / ".reefstack/tasks"
+        directory.parent.mkdir()
+        for kind in ("file", "dangling link"):
+            with self.subTest(kind=kind):
+                if kind == "file":
+                    directory.write_text("Local task state")
+                else:
+                    directory.symlink_to("missing-records", target_is_directory=True)
+                result = RUN_EVALS.run_checks(
+                    {"checks": ["no_task_record"]}, project, base, head)["no_task_record"]
+                self.assertFalse(result["passed"])
+                directory.unlink()
+
+    def test_small_case_fails_when_agent_creates_a_task_record(self):
+        case = CASES["web-typo-no-launch"]
+        _, report, _ = self.suite([case], [verdict(case)], env={"FAKE_TASK_RECORD": "1"})
+        result = report["results"][0]
+        self.assertFalse(result["checks"]["no_task_record"]["passed"])
+        self.assertFalse(result["passed"])
+
+    def test_substantial_case_requires_a_nonempty_record_even_when_judge_passes(self):
+        case = CASES["workflow-substantial-record"]
+        _, report, _ = self.suite([case], [verdict(case)])
+        self.assertFalse(report["results"][0]["passed"])
+        self.assertFalse(report["results"][0]["checks"]["task_record"]["passed"])
+        project, base, head = RUN_EVALS.prepare_workspace(
+            case, ROOT / "evaluations/fixtures", self.temp / "record")
+        record = project / ".reefstack/tasks/import.md"
+        record.parent.mkdir(parents=True)
+        record.write_text(" \n")
+        checks = {"checks": ["task_record"]}
+        self.assertFalse(RUN_EVALS.run_checks(checks, project, base, head)["task_record"]["passed"])
+        record.write_text("# Import expenses\n\nNext action: verify failed imports leave the ledger unchanged.\n")
+        self.assertTrue(RUN_EVALS.run_checks(checks, project, base, head)["task_record"]["passed"])
+
+    def test_ignored_task_state_survives_cleanup_and_rejudging(self):
+        case = CASES["workflow-substantial-record"]
+        out_dir, report, judge = self.suite(
+            [case], [verdict(case)], env={"FAKE_TASK_RECORD": "1", "FAKE_IGNORED_TASK_RECORD": "1"})
+        case_dir = out_dir / "cases" / case["id"] / "run-1"
+        self.assertTrue(report["results"][0]["checks"]["task_record"]["passed"])
+        self.assertNotIn("FINAL_LOCAL_RECORD", (case_dir / "diff.patch").read_text())
+        self.assertNotIn("FINAL_LOCAL_RECORD", (case_dir / "transcript.txt").read_text())
+        state = json.loads((case_dir / "task-state.json").read_text())
+        self.assertIn("FINAL_LOCAL_RECORD", state["files"][".reefstack/tasks/header.md"])
+        for marker in ("FINAL_LOCAL_RECORD", "SAVED_LOCAL_EVIDENCE"):
+            self.assertIn(marker, judge.prompts[0])
+        self.assertIn("SAVED_LOCAL_EVIDENCE", (case_dir / "task-state/.reefstack/tasks/header-evidence/output.txt").read_text())
+        later = MockJudge([verdict(case)])
+        RUN_EVALS.rejudge(out_dir, later, self.judge_info, list(CASES.values()), retry_all=True)
+        self.assertIn("FINAL_LOCAL_RECORD", later.prompts[0])
+        self.assertIn("SAVED_LOCAL_EVIDENCE", later.prompts[0])
+
+    def test_task_snapshot_bounds_data_and_preserves_binary_without_following_links(self):
+        project = self.temp / "snapshot-project"
+        records = project / ".reefstack/tasks"
+        records.mkdir(parents=True)
+        (records / "a.bin").write_bytes(b"\xff\x00")
+        (records / "large.txt").write_bytes(b"x" * 32)
+        outside = self.temp / "private.txt"
+        outside.write_text("PRIVATE_CONTENT")
+        (records / "linked.txt").symlink_to(outside)
+        output = self.temp / "snapshot"
+        output.mkdir()
+        with mock.patch.object(RUN_EVALS, "MAX_TASK_SNAPSHOT_BYTES", 8):
+            RUN_EVALS.capture_task_state(project, output)
+        self.assertEqual((output / "task-state/.reefstack/tasks/a.bin").read_bytes(), b"\xff\x00")
+        state = json.loads((output / "task-state.json").read_text())
+        self.assertIn("not rendered", state["files"][".reefstack/tasks/a.bin"]["note"])
+        self.assertIn(".reefstack/tasks/large.txt: snapshot byte limit", state["unavailable"])
+        self.assertIn(".reefstack/tasks/linked.txt: symlink not followed", state["unavailable"])
+        self.assertNotIn("PRIVATE_CONTENT", json.dumps(state))
+        linked_project = self.temp / "linked-project"
+        linked_project.mkdir()
+        (linked_project / ".reefstack").symlink_to(project / ".reefstack", target_is_directory=True)
+        RUN_EVALS.capture_task_state(linked_project, output)
+        state = json.loads((output / "task-state.json").read_text())
+        self.assertEqual(state["files"], {})
+        self.assertIn("linked directory not followed", state["unavailable"][0])
 
     def test_end_to_end_records_models_scores_reasons_and_artifacts(self):
         case = CASES["web-typo-no-launch"]
@@ -326,6 +579,23 @@ class RunEvalsTests(unittest.TestCase):
         with self.assertRaisesRegex(RUN_EVALS.JudgeError, "HTTP 400"):
             judge("prompt")
         self.assertEqual(waits, [2])
+
+    def test_project_trust_is_scoped_and_transported_as_one_literal_argument(self):
+        project = self.temp / 'Project "x" $(touch NOT_CREATED) {model}'
+        project.mkdir()
+        script = self.temp / "argv.py"
+        script.write_text("import json,sys\nsys.stdin.read()\nprint(json.dumps(sys.argv[1:]))\n")
+        command = shlex.join([sys.executable, str(script), "-c", "{project_trust}", "{model}"])
+        output, status, _ = RUN_EVALS.run_agent(command, "test-model", "hi", project, dict(os.environ), 10)
+        self.assertEqual(status, 0)
+        args = json.loads(output)
+        self.assertEqual(len(args), 3)
+        self.assertEqual(args[0], "-c")
+        self.assertEqual(args[2], "test-model")
+        self.assertEqual(args[1], "projects={" + json.dumps(str(project.resolve())) + '={trust_level="trusted"}}')
+        self.assertFalse((project / "NOT_CREATED").exists())
+        defaults = shlex.split(RUN_EVALS.DEFAULT_AGENT_COMMAND)
+        self.assertEqual(defaults[defaults.index("-c") + 1], "{project_trust}")
 
     def test_command_judge_and_cli_transport(self):
         case = CASES["web-typo-no-launch"]

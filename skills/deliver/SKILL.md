@@ -5,9 +5,11 @@ description: Implement and continuously integrate authorized substantial enginee
 
 # Deliver
 
-Keep the main agent on uncertainty, contracts, the critical path, and integration. Delegate everything else that a trigger below covers; do the rest directly.
+Use these coordination methods at the implementation step of the selected playbook; that playbook owns workflow order and completion. Keep the main agent on uncertainty, contracts, the critical path, and integration. Delegate when a trigger below covers useful independent work; do the rest directly. A routine procedure does not itself require helpers.
 
 Before fan-out, confirm that shared contracts are established and blocking probes passed. Name the independent workstreams, exclusive ownership, shared state, acceptance checks, and smallest useful decomposition. Write each brief from [the delegation briefs](../../references/worker-brief.md).
+
+For substantial work, put ownership, dependencies, and the contract revision in the existing [task record](../../references/task-record.md). The coordinator owns its updates; workers return evidence and blockers. A returned result is not yet integrated or verified. When a contract changes, mark affected dependent work and receipts stale before continuing it.
 
 ## Delegate when
 
@@ -29,6 +31,4 @@ Use explorer findings as reliable leads and check the specific fact a consequent
 
 Separate transient infrastructure failures from correctness failures. A bounded infrastructure retry may be appropriate. After two corrections fail the same acceptance condition, the main agent reproduces and investigates the shared premise before another worker attempt. A contract failure blocks dependent pieces, not unrelated progress.
 
-After opening or pushing to a pull request, attach a watch through the harness instead of waiting in the turn. It follows checks and conflicts, fixes what the pull request caused, and stops when the pull request is green, merged, or closed.
-
-Use [verify](../verify/SKILL.md) for the integrated path and [review](../review/SKILL.md) for substantial changes. Fix accepted findings and recheck affected behavior. Report changed behavior, actual verification, and residual gaps, without treating worker summaries as proof.
+Return integrated work and evidence to the selected playbook's next step. Worker summaries alone are not proof. PR work uses [PR follow-up](../../references/playbooks/pr-follow-up.md); coordination does not grant publication or merge authority.
