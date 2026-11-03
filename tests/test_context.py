@@ -24,14 +24,11 @@ class ContextTests(unittest.TestCase):
                 self.assertEqual(output["hookEventName"], "SessionStart")
                 self.assertIn(str(ROOT / "skills/reefstack/SKILL.md"), output["additionalContext"])
 
-    def test_partial_override_preserves_other_roles_and_effort(self):
+    def test_override_changes_only_enabled(self):
         with tempfile.TemporaryDirectory() as data:
-            Path(data, "settings.json").write_text(json.dumps({"models": {"worker": {"model": "gpt-6.1-sol"}}}))
-            defaults = CONTEXT.load_settings()
-            expected = copy.deepcopy(defaults)
-            expected["models"]["worker"]["model"] = "gpt-6.1-sol"
-            self.assertEqual(CONTEXT.load_settings(data_directory=data), expected)
-            self.assertEqual(CONTEXT.load_settings(), defaults)
+            Path(data, "settings.json").write_text('{"enabled": false}')
+            self.assertEqual(CONTEXT.load_settings(data_directory=data), {"enabled": False})
+            self.assertEqual(CONTEXT.load_settings(), {"enabled": True})
 
     def test_disabled_setting_supplies_no_context(self):
         with tempfile.TemporaryDirectory() as data:
@@ -45,7 +42,6 @@ class ContextTests(unittest.TestCase):
         self.assertNotIn(str(ROOT / "skills/reefstack/SKILL.md"), result["additionalContext"])
         self.assertNotIn(str(ROOT / "skills/grill/SKILL.md"), result["additionalContext"])
         self.assertNotIn(str(ROOT / "references/playbooks/resume.md"), result["additionalContext"])
-        self.assertNotIn(str(ROOT / "references/task-record.md"), result["additionalContext"])
         self.assertIn(str(ROOT / "references/review-rubric.md"), result["additionalContext"])
 
     def test_grill_is_available_to_root_across_session_sources(self):
@@ -55,7 +51,7 @@ class ContextTests(unittest.TestCase):
                 self.assertIn(str(ROOT / "skills/grill/SKILL.md"), text)
                 self.assertTrue((ROOT / "skills/grill/SKILL.md").is_file())
 
-    def test_lifecycle_hooks_point_to_workflow_without_reading_or_writing_task_state(self):
+    def test_lifecycle_hooks_point_to_workflow_without_reading_or_writing_project_state(self):
         hooks = json.loads((ROOT / "hooks/hooks.json").read_text())["hooks"]
         env = dict(os.environ)
         env.pop("PLUGIN_DATA", None)
@@ -74,8 +70,7 @@ class ContextTests(unittest.TestCase):
                         text=True, capture_output=True, env=env, cwd=project, check=True,
                     )
                     text = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-                    for relative in ("references/playbooks/resume.md", "references/task-record.md",
-                                     "scripts/map_lint.py", "scripts/task_handoff.py"):
+                    for relative in ("references/playbooks/resume.md", "scripts/map_lint.py"):
                         self.assertIn(str(ROOT / relative), text)
                         self.assertTrue((ROOT / relative).is_file())
                     self.assertNotIn("PRIVATE_TASK_CONTENT", text)
@@ -143,11 +138,9 @@ class ContextTests(unittest.TestCase):
                 self.assertEqual(context["hookEventName"], event)
                 self.assertIn(str(relocated / "references/worker-brief.md"), context["additionalContext"])
 
-    def test_invalid_model_and_effort_overrides_are_rejected(self):
-        for value in ({"models": {"worker": {"model": "bad\ntext"}}},
-                      {"models": {"reviewer": {"reasoning_effort": "unknown"}}},
-                      {"enabled": "false"}, {"unsupported": True},
-                      {"models": {"unknown-role": {}}}):
+    def test_invalid_overrides_are_rejected(self):
+        for value in ({"enabled": "false"}, {"unsupported": True},
+                      {"models": {"worker": {"model": "any"}}}):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 CONTEXT.validate_settings(value)
 
@@ -167,10 +160,10 @@ class ContextTests(unittest.TestCase):
                 self.assertIn("systemMessage", output)
                 self.assertNotIn("hookSpecificOutput", output)
 
-    def test_session_context_includes_delegation_roles_and_harness_notes(self):
+    def test_session_context_includes_harness_notes_without_model_prescription(self):
         text = CONTEXT.context_result("session", {})["hookSpecificOutput"]["additionalContext"]
-        for role in CONTEXT.ROLES:
-            self.assertIn(f'"{role}"', text)
+        for removed in ("heavy_worker", "critical_reviewer", "reasoning_effort", "role defaults"):
+            self.assertNotIn(removed, text)
         self.assertIn("Codex delegation mechanics", text)
         self.assertNotIn("Codex delegation mechanics",
                          CONTEXT.context_result("subagent", {})["hookSpecificOutput"]["additionalContext"])

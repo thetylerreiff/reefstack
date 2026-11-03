@@ -12,7 +12,6 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW_REFERENCES = (
-    "references/task-record.md", "references/task-record-template.md",
     "references/playbooks/investigation.md", "references/playbooks/bug-fix.md",
     "references/playbooks/feature.md", "references/playbooks/resume.md",
     "references/playbooks/refactoring.md", "references/playbooks/performance.md",
@@ -75,7 +74,7 @@ def check_package():
         raise ValueError("unexpected plugin identity")
     hooks = json.loads(inside_file(manifest["hooks"]).read_text())["hooks"]
     inside_file(manifest["extensions"]["com.openai"]["onboardingSkill"])
-    if set(hooks) != {"SessionStart", "SubagentStart", "Stop"}:
+    if set(hooks) != {"SessionStart", "SubagentStart"}:
         raise ValueError("unexpected hook events")
     session_matcher = re.compile(hooks["SessionStart"][0]["matcher"])
     if not all(session_matcher.fullmatch(source) for source in ("startup", "resume", "clear", "compact")):
@@ -117,13 +116,6 @@ def check_package():
             result = json.loads(run.stdout)["hookSpecificOutput"]
             if result["hookEventName"] != event or not result["additionalContext"]:
                 raise ValueError("hook did not return context")
-    guard = hooks["Stop"][0]["hooks"][0]
-    if guard["command"] != 'python3 "${PLUGIN_ROOT}/scripts/handoff_guard.py"':
-        raise ValueError("unexpected handoff guard command")
-    quiet = subprocess.run(guard["command"], shell=True, input='{"hook_event_name":"Stop"}',
-                           text=True, capture_output=True, timeout=5, env=env, check=True)
-    if json.loads(quiet.stdout) != {}:
-        raise ValueError("handoff guard must leave unrecorded turns alone")
     feature_map = check_feature_map()
     check_workflow_references()
     check_evaluations()

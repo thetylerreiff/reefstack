@@ -1,11 +1,3 @@
 {
-  "enabled": true,
-  "models": {
-    "explorer": {"model": "gpt-6-luna", "reasoning_effort": "medium"},
-    "mechanical": {"model": "gpt-6-luna", "reasoning_effort": "medium"},
-    "worker": {"model": "gpt-6-luna", "reasoning_effort": "high"},
-    "heavy_worker": {"model": "gpt-6.1-sol", "reasoning_effort": "high"},
-    "reviewer": {"model": "gpt-6-astra", "reasoning_effort": "high"},
-    "critical_reviewer": {"model": "gpt-6-astra", "reasoning_effort": "xhigh"}
-  }
+  "enabled": true
 }

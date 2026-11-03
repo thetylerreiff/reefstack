@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location("lifecycle", ROOT / "scripts/run_lifecycle.py")
@@ -124,6 +125,18 @@ class LifecycleProtocolTests(unittest.TestCase):
         server.wait_turn = lambda *args: {"status": "completed"}
         server.turn("thread", "continue", "model", "high")
         self.assertEqual(calls[0][1]["disabledPluginIds"], server.disabled_plugins)
+
+    def test_stages_continue_from_a_user_requested_plan_file(self):
+        self.assertEqual(lifecycle.PLAN, "docs/plans/report-command.md")
+        for prompt in (lifecycle.PARTIAL_PROMPT, lifecycle.AMENDMENT_PROMPT, lifecycle.RESUME_PROMPT):
+            self.assertIn(lifecycle.PLAN, prompt)
+            for word in (".reefstack", "task record", "handoff", "durable"):
+                self.assertNotIn(word, prompt)
+
+    def test_model_argument_is_required(self):
+        with mock.patch.object(sys, "argv", ["run_lifecycle.py", "--output", "unused"]), \
+             mock.patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
+            lifecycle.main()
 
     def test_initial_stage_accepts_expected_absence_of_summary(self):
         with tempfile.TemporaryDirectory() as temp:

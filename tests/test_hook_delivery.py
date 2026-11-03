@@ -1,5 +1,6 @@
 """Native hook evidence checks and real command transport, without model calls."""
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -23,32 +24,6 @@ def row(key="ours", source="sessionFlags", event="sessionStart", **extra):
 
 
 class HookDeliveryTests(unittest.TestCase):
-    def test_handoff_evidence_requires_rejection_then_correct_link_in_same_thread(self):
-        def row(message, output, thread="thread"):
-            return {"input": {"hook_event_name": "Stop", "session_id": thread,
-                              "last_assistant_message": message}, "output": output}
-        rejected = row("Done", {"decision": "block"})
-        accepted = row("Record: correct-link", {})
-        self.assertEqual(probe.handoff_outcomes([rejected, accepted], "thread", "correct-link"),
-                         (rejected, accepted))
-        for rows in ([accepted], [accepted, rejected], [rejected, row("wrong-link", {})],
-                     [rejected, row("correct-link", {}, "other")],
-                     [rejected, row("correct-link", {"systemMessage": "unverified"})]):
-            self.assertIsNone(probe.handoff_outcomes(rows, "thread", "correct-link"))
-
-    def test_stop_proof_requires_matching_native_start_and_turn(self):
-        run = {"id": "guard", "startedAt": 1, "eventName": "stop", "source": "sessionFlags",
-               "sourcePath": "/<session-flags>/config.toml", "status": "completed"}
-        events = [{"method": method, "params": {"threadId": "thread", "turnId": "turn", "run": run}}
-                  for method in ("hook/started", "hook/completed")]
-        self.assertEqual(probe.stop_runs(events, "thread", "turn"), [run])
-        self.assertEqual(probe.stop_runs(events[1:], "thread", "turn"), [])
-        self.assertEqual(probe.stop_runs(events, "thread", "other"), [])
-        self.assertEqual(probe.stop_runs(events, "thread", "turn", "blocked"), [])
-        run["status"] = "blocked"
-        self.assertEqual(probe.stop_runs(events, "thread", "turn", "blocked"), [run])
-        self.assertEqual(probe.stop_runs(events, "thread", "turn"), [])
-
     @unittest.skipIf(os.name == "nt", "POSIX directory permissions")
     def test_evidence_directory_is_private_even_with_permissive_umask(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -63,6 +38,13 @@ class HookDeliveryTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o700)
             self.assertEqual(result["status"], "failed")
             self.assertTrue((output / "result.json").is_file())
+
+    def test_model_argument_is_required(self):
+        with mock.patch.object(sys, "argv", ["run_hook_delivery.py", "--output", "unused"]), \
+             mock.patch.object(probe, "run_hook_delivery") as run, \
+             mock.patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
+            probe.main()
+        run.assert_not_called()
 
     def test_exact_hash_trust_is_limited_to_invocation_hooks(self):
         rows = [row(), row("ambient", "plugin", trustStatus="trusted")]
@@ -80,9 +62,10 @@ class HookDeliveryTests(unittest.TestCase):
                 probe.hook_rows(response)
 
     def test_untrusted_or_ambient_enabled_cannot_pass_isolation(self):
-        rows = [row(trustStatus="trusted"), row("child", event="subagentStart", trustStatus="trusted"),
-                row("guard", event="stop", trustStatus="trusted")]
+        rows = [row(trustStatus="trusted"), row("child", event="subagentStart", trustStatus="trusted")]
         probe.verify_isolation(rows, True)
+        with self.assertRaises(probe.LifecycleError):
+            probe.verify_isolation(rows + [row("guard", event="stop", trustStatus="trusted")], True)
         with self.assertRaises(probe.LifecycleError):
             probe.verify_isolation(rows, False)
         with self.assertRaises(probe.LifecycleError):

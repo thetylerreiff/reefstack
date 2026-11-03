@@ -3,12 +3,12 @@
 Run this separately from credential-free package checks:
 
 ```sh
-python3 scripts/run_lifecycle.py --output /private/tmp/reefstack-lifecycle-unique
+python3 scripts/run_lifecycle.py --output /private/tmp/reefstack-lifecycle-unique --model <model>
 ```
 
-The output directory must not exist. The probe uses the authenticated local
-`codex app-server --listen stdio://` and the default worker model
-(`gpt-6-luna`, high effort by default). Each server is a new child process with
+The output directory must not exist. `--model` is required; effort defaults to
+`high`. The probe uses the authenticated local
+`codex app-server --listen stdio://`. Each server is a new child process with
 its own process group. The probe never connects to the desktop daemon, restarts
 the desktop app, installs the plugin, trusts hooks, or edits global settings.
 Host permissions may require explicit approval to start that child server.
@@ -16,15 +16,16 @@ Unexpected client approval/input requests fail closed.
 
 The model edits an isolated Tally copy in three stages:
 
-1. Rename `summary` to `report`, create the durable record, and pause before docs.
+1. Rename `summary` to `report`, keep a plan the user asks for at
+   `docs/plans/report-command.md`, and pause before docs.
 2. After an actual completed native context-compaction item and its successful
    matching turn, amend the implementation to preserve `summary` as an alias.
 3. Stop the first child server, start another, resume the same persistent thread,
-   and finish the docs, verification map, and task record.
+   and finish the docs, verification map, and plan.
 
 Each stage retains native JSONL protocol events (unrelated account/authentication
 notifications are redacted), independent command/unit-check
-results, and record snapshots. Final checks also run map lint and stale-entry
+results, and plan snapshots. Final checks also run map lint and stale-entry
 checks. `result.json` reports failure for unavailable/rejected compaction or
 resume, missing native completion, timeout, or failed artifact checks. An RPC
 acknowledgement alone never proves compaction. Both child servers are stopped
@@ -37,8 +38,8 @@ are enumerated read-only and excluded on each turn using `disabledPluginIds`. Ex
 remain in effect; they are not replaced. Passing this probe proves native
 compaction/resume plus the exercised behavior with supplied current guidance;
 it does **not** prove current-plugin installation, hook trust, or native delivery
-of that guidance. The automatic record check only verifies contract keywords
-and absence of unchecked boxes; it is not a semantic handoff review. Review the
-saved record snapshots and events to check semantic
-handoff quality and which files the resumed agent actually read. Keep failed
+of that guidance. The automatic plan check only verifies contract keywords
+and absence of unchecked boxes; it is not a semantic review. Review the
+saved plan snapshots and events to check whether the resumed agent rebuilt
+state correctly and which files it actually read. Keep failed
 runs as evidence instead of silently treating a later pass as their result.

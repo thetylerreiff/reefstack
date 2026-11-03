@@ -20,7 +20,7 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parent.parent
-RECORD = ".reefstack/tasks/report-command.md"
+PLAN = "docs/plans/report-command.md"
 
 
 class LifecycleError(RuntimeError):
@@ -196,27 +196,27 @@ class AppServer:
         self.log.close()
 
 
-PARTIAL_PROMPT = """In this Tally project, start the named task report-command: rename the summary
-command to report. Create a concise durable task record at {record}. For this
-first stage implement the CLI rename and corresponding unit tests only. Do not
-update the user README or verification map yet. Run the unit tests, then pause
-as requested with a record of the current dirty files, verified work, outstanding
-docs/map work, and first next action. Do not commit. Do not delegate this small
-staged task. Keep all expense data in a temporary TALLY_HOME.""".format(record=RECORD)
+PARTIAL_PROMPT = """In this Tally project, start renaming the summary command to report. Keep a
+short plan for this work in {plan} with a checklist. For this first stage
+implement the CLI rename and corresponding unit tests only. Do not update the
+user README or verification map yet. Run the unit tests, then stop and note in
+the plan which files changed, what you verified, the docs/map work still to do,
+and the next step. Do not commit. Do not delegate this small staged change.
+Keep all expense data in a temporary TALLY_HOME.""".format(plan=PLAN)
 
-AMENDMENT_PROMPT = """Continue report-command from {record}. Updated requirement: summary must remain
-as a backwards-compatible alias of report with identical output and options.
-Implement and test that compatibility now. Keep the docs/map work outstanding
-for the next stage and update the existing task record to reflect this latest
+AMENDMENT_PROMPT = """Let's continue the report rename; the plan is in {plan}. Updated requirement:
+summary must remain as a backwards-compatible alias of report with identical
+output and options. Implement and test that compatibility now. Leave the
+docs/map work for the next stage, and update the plan so it reflects this latest
 requirement, what is verified, and what remains. Do not commit or delegate.
-Keep expense data in a temporary TALLY_HOME. Pause after this stage.""".format(record=RECORD)
+Keep expense data in a temporary TALLY_HOME. Stop after this stage.""".format(plan=PLAN)
 
-RESUME_PROMPT = """Continue the named report-command task from {record}. Finish the remaining
-authorized work and verify the current artifact. The latest requirement still
-applies: report is the primary command and summary remains a compatible alias.
-Update the user README and existing verification map to describe both commands,
-run the relevant checks, and reconcile the whole durable record before your
-final handoff. Do not commit or delegate. Use temporary TALLY_HOME data.""".format(record=RECORD)
+RESUME_PROMPT = """Please finish the report rename; the plan is in {plan}. Complete the remaining
+work and verify the current code. The latest requirement still applies: report
+is the primary command and summary remains a compatible alias. Update the user
+README and existing verification map to describe both commands, run the
+relevant checks, and bring the plan up to date with what is done before you
+finish. Do not commit or delegate. Use temporary TALLY_HOME data.""".format(plan=PLAN)
 
 
 def check_artifact(project, evidence, label, alias=True):
@@ -255,7 +255,7 @@ def run_lifecycle(output, model, effort, timeout, command):
     report = {"status": "failed", "started_at": datetime.now(timezone.utc).isoformat(),
               "model": model, "effort": effort, "guidance": "supplied per-thread developerInstructions",
               "native_hook_delivery": "not asserted", "hook_trust_or_installation": "not changed",
-              "record_check": "contract keywords/open checkboxes only; semantic review required",
+              "plan_check": "contract keywords/open checkboxes only; semantic review required",
               "host_configuration": "Existing authentication/configuration retained; installed plugins disabled per turn"}
     server = None
     try:
@@ -289,11 +289,11 @@ def run_lifecycle(output, model, effort, timeout, command):
         report["thread_id"] = thread_id
         report["partial_turn"] = server.turn(thread_id, PARTIAL_PROMPT, model, effort)
         check_artifact(project, evidence, "partial", alias=False)
-        record = project / RECORD
-        if not record.is_file() or not record.read_text().strip():
-            raise LifecycleError("partial stage did not create the durable record")
+        plan = project / PLAN
+        if not plan.is_file() or not plan.read_text().strip():
+            raise LifecycleError("partial stage did not create the plan file")
         # Capture stage evidence before later turns can revise it.
-        (evidence / "partial-record.md").write_text(record.read_text())
+        (evidence / "partial-plan.md").write_text(plan.read_text())
         (evidence / "partial.diff").write_text(runner.git(project, "diff"))
         if not (evidence / "partial.diff").stat().st_size:
             raise LifecycleError("partial stage produced no tracked implementation changes")
@@ -302,7 +302,7 @@ def run_lifecycle(output, model, effort, timeout, command):
         report["compaction"] = server.wait_turn(thread_id, start=start, compact=True)
         report["post_compaction_turn"] = server.turn(thread_id, AMENDMENT_PROMPT, model, effort)
         check_artifact(project, evidence, "post-compaction")
-        (evidence / "post-compaction-record.md").write_text(record.read_text())
+        (evidence / "post-compaction-plan.md").write_text(plan.read_text())
         server.close()
         server = None
         server = AppServer(command, project, evidence, "after-restart", timeout)
@@ -325,10 +325,10 @@ def run_lifecycle(output, model, effort, timeout, command):
                                 "feature_commands": all(word in feature for word in ("report", "summary"))}
         if map_errors or current_errors or not all(report["map_checks"][key] for key in ("readme_commands", "feature_commands")):
             raise LifecycleError("final documentation/map checks failed")
-        final_record = record.read_text()
-        (evidence / "final-record.md").write_text(final_record)
-        if "report" not in final_record or "summary" not in final_record or "- [ ]" in final_record:
-            raise LifecycleError("final task record omitted current contract or retains open work")
+        final_plan = plan.read_text()
+        (evidence / "final-plan.md").write_text(final_plan)
+        if "report" not in final_plan or "summary" not in final_plan or "- [ ]" in final_plan:
+            raise LifecycleError("final plan omitted current contract or retains open work")
         (evidence / "final.diff").write_text(runner.git(project, "diff"))
         report["status"] = "passed"
     except Exception as error:
@@ -344,7 +344,7 @@ def run_lifecycle(output, model, effort, timeout, command):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="fresh evidence/workspace directory")
-    parser.add_argument("--model", default="gpt-6-luna")
+    parser.add_argument("--model", required=True)
     parser.add_argument("--effort", default="high")
     parser.add_argument("--timeout", type=float, default=300, help="seconds per request/turn")
     parser.add_argument("--codex", default="codex", help="local Codex executable")

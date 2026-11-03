@@ -33,8 +33,6 @@ class PackageTests(unittest.TestCase):
             ("assets/icon.png", "icon"),
             ("hooks/hooks.json", "hooks"),
             ("references/guide.md", "guide"),
-            ("references/task-record.md", "record procedure"),
-            ("references/task-record-template.md", "record template"),
             ("references/playbooks/resume.md", "resume procedure"),
             (".reefstack/tasks/private-task.md", "local task state"),
             (".reefstack/tasks/private-task-evidence/output.txt", "local evidence"),
@@ -75,7 +73,6 @@ class PackageTests(unittest.TestCase):
                     "assets/icon.png", "hooks/hooks.json", "references/guide.md",
                     "scripts/package.py", "skills/example/SKILL.md", "harness/codex.md",
                     "settings/settings.json", "tests/test.py", "evaluations/fixtures/app/main.py",
-                    "references/task-record.md", "references/task-record-template.md",
                     "references/playbooks/resume.md",
                     "docs/failure-log.md",
                 ):

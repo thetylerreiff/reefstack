@@ -8,20 +8,19 @@ The local health check and unittest suite exercise:
 
 - Manifest and skill references, lifecycle matchers, and declared shell commands.
 - Startup, resume, clear, compaction, and delegated-agent context.
-- Partial model overrides and disabled output.
+- The `enabled` override and disabled output; no model settings are accepted.
 - Input/settings rejection and exclusion of untrusted payload text from generated context.
 - Relocation and shell quoting when the package path contains spaces.
 - Separation of coordinator and delegated-agent context.
-- Role configuration and separation of core procedures from named host/model mechanics.
+- Separation of core procedures from named host mechanics, with no model names in core procedures.
 - Standalone archive layout, inclusion, exclusions, output safety, and extraction.
 - Feature-map lint: required sections and order, typed non-empty entry points, index coverage, `Last checked` statuses, CLI exit codes, and health's lint of the packaged template and any `docs/verification/`.
 - Map drift check (`--since`): a renamed route in the web fixture and a renamed subcommand in the CLI fixture are flagged in real git repositories, and clear once the map moves or the old name is kept as an alias.
 - Evaluation runner: case and fixture validation, blinding rejection, neutral workspaces, environment scrubbing, simulated port-binding denial, cleanup of servers the agent leaves running, deterministic checks and agent exit status overriding the judge, judge-reply failures and retries, input truncation, re-judging saved sessions, the stopping rule (full suite, committed procedures, consecutive runs), the judge's request shape, key handling, and the command-line transport, all with a fake agent and a mock judge. No model was called.
 - Failure log entries name an outcome and an enforcing file that exists.
-- Compact playbook and task-record references, including links inside the playbooks; release archives include the procedures and template but exclude private task records and evidence.
-- Actual shell-hook transport on startup, resume, clear, and compaction exposes the recovery references without reading, creating, or changing workspace task records. This checks delivery of instructions, not recovery performed by an agent.
-- Workflow fixtures apply a real partial CLI change and supplied record in a Git repository. Deterministic checks reject missing records for the substantial case, unexpected records for the small case, and record/source edits for read-only pickup. A record's existence does not prove its contents are correct; that remains a behavioral criterion.
-- Final task-state snapshots preserve ignored records and local evidence for judging and rejudging after the temporary project is removed, with byte limits and no symlink traversal. Binary evidence is saved but not rendered by the text judge; unavailable evidence is reported explicitly.
+- Workflow fixtures apply a real partial CLI change and a handoff note in a Git repository; deterministic checks reject source or note edits for read-only pickup.
+- Compact playbook references, including links inside the playbooks.
+- Actual shell-hook transport on startup, resume, clear, and compaction exposes the Resume reference without reading or changing workspace files. This checks delivery of instructions, not recovery performed by an agent.
 
 The icon is a square 1254-by-1254 PNG, below the documented size limit, referenced by both logo and composerIcon.
 

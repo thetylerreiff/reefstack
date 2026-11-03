@@ -14,7 +14,6 @@ import secrets
 import shlex
 import subprocess
 import sys
-import time
 import zipfile
 
 from run_lifecycle import AppServer, LifecycleError, load_module
@@ -32,18 +31,16 @@ WRAPPER = '''import json, pathlib, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent
 payload = sys.stdin.buffer.read(65537)
 mode = sys.argv[1]
-command = ([sys.executable, str(root / "reefstack/scripts/handoff_guard.py")] if mode == "handoff"
-           else [sys.executable, str(root / "reefstack/scripts/context.py"), mode])
+command = [sys.executable, str(root / "reefstack/scripts/context.py"), mode]
 result = subprocess.run(command, input=payload, capture_output=True, timeout=10)
 if result.returncode:
     sys.stderr.buffer.write(result.stderr)
     raise SystemExit(result.returncode)
 output = json.loads(result.stdout)
-if mode != "handoff":
-    context = output["hookSpecificOutput"]["additionalContext"]
-    markers = json.loads((root / "markers.json").read_text())
-    token = markers[mode]
-    output["hookSpecificOutput"]["additionalContext"] = context + "\\n\\nNative Reefstack delivery proof: " + token
+context = output["hookSpecificOutput"]["additionalContext"]
+markers = json.loads((root / "markers.json").read_text())
+token = markers[mode]
+output["hookSpecificOutput"]["additionalContext"] = context + "\\n\\nNative Reefstack delivery proof: " + token
 record = {"input": json.loads(payload), "command": command, "output": output}
 with (root / "hook-executions.jsonl").open("a") as stream:
     stream.write(json.dumps(record) + "\\n")
@@ -94,8 +91,8 @@ def state_for(rows, trust=False):
 
 def verify_isolation(rows, trusted):
     ours = [row for row in rows if row.get("source") == "sessionFlags"]
-    if {row["eventName"] for row in ours} != {"sessionStart", "subagentStart", "stop"}:
-        raise LifecycleError("expected native SessionStart, SubagentStart, and Stop hooks")
+    if {row["eventName"] for row in ours} != {"sessionStart", "subagentStart"}:
+        raise LifecycleError("expected native SessionStart and SubagentStart hooks")
     for row in rows:
         if row in ours:
             expected = "trusted" if trusted else "untrusted"
@@ -167,84 +164,6 @@ def saved_config_fingerprints():
             if (root / name).is_file() else None for name in ("config.toml", "hooks.json", "AGENTS.md")}
 
 
-def handoff_outcomes(records, thread_id, link):
-    """Require a real rejection followed by a quiet, corrected Stop payload."""
-    blocked = None
-    for row in records:
-        payload, output = row.get("input", {}), row.get("output", {})
-        if payload.get("hook_event_name") != "Stop" or payload.get("session_id") != thread_id:
-            continue
-        if output.get("decision") == "block" and payload.get("last_assistant_message") == "Done":
-            blocked = row
-        elif blocked is not None and output == {} and link in payload.get("last_assistant_message", ""):
-            return blocked, row
-    return None
-
-
-def stop_runs(events, thread_id, turn_id, status="completed"):
-    starts, completed = set(), []
-    for event in events:
-        params = event.get("params", {})
-        run = params.get("run", {})
-        if (params.get("threadId") != thread_id or params.get("turnId") != turn_id
-                or run.get("eventName") != "stop" or run.get("source") != "sessionFlags"
-                or run.get("sourcePath") != "/<session-flags>/config.toml"):
-            continue
-        identity = (run.get("id"), run.get("startedAt"))
-        if event.get("method") == "hook/started":
-            starts.add(identity)
-        elif event.get("method") == "hook/completed" and run.get("status") == status and identity in starts:
-            completed.append(run)
-    return completed
-
-
-def probe_handoff(server, output, project, thread, model, effort):
-    helper = load_module("native_task_handoff", output / "reefstack/scripts/task_handoff.py")
-    record = project / ".reefstack/tasks/native-handoff.md"
-    record.parent.mkdir(parents=True)
-    record.write_text("# Native handoff\n\n## Current state\nComplete.\n\n## Resume\nComplete; no remaining action.\n")
-    receipt = helper.read_record(record)
-    command = shlex.join([sys.executable, str(output / "reefstack/scripts/task_handoff.py"), str(record)])
-    prompt = ("This is a bounded native handoff test. Run " + command +
-              ". Do not edit files. Intentionally reply with exactly Done, omitting the link on your FIRST answer only. "
-              "If the native handoff validator requests a correction, follow that feedback: rerun the helper "
-              "and return its exact Record line. Do not do other work.")
-    events_start = len(server.events)
-    log = output / "hook-executions.jsonl"
-    records_start = len(log.read_text().splitlines())
-    initial = server.request("turn/start", {"threadId": thread, "model": model, "effort": effort,
-                            "disabledPluginIds": server.disabled_plugins,
-                            "input": [{"type": "text", "text": prompt}]})["turn"]["id"]
-    deadline = time.monotonic() + server.timeout
-    outcomes = None
-    while outcomes is None:
-        records = [json.loads(line) for line in log.read_text().splitlines()[records_start:]]
-        outcomes = handoff_outcomes(records, thread, receipt["markdown_link"])
-        if outcomes is None:
-            server.receive(deadline)
-    rejected, corrected = outcomes
-    corrected_turn = corrected["input"]["turn_id"]
-    completion = server.wait_turn(thread, corrected_turn, start=events_start)
-    events = server.events[events_start:]
-    if not stop_runs(events, thread, rejected["input"]["turn_id"], "blocked") or not stop_runs(events, thread, corrected_turn):
-        raise LifecycleError("handoff correction lacks matching native Stop events")
-    # The second helper call must actually have read the unchanged fixture.
-    reads = []
-    for event in events:
-        params, item = event.get("params", {}), event.get("params", {}).get("item", {})
-        if (event.get("method") == "item/completed" and params.get("threadId") == thread
-                and item.get("type") == "commandExecution" and item.get("exitCode") == 0):
-            for line in item.get("aggregatedOutput", "").split("\n"):
-                if line.startswith(helper.RECEIPT_PREFIX):
-                    reads.append(json.loads(line[len(helper.RECEIPT_PREFIX):]))
-    if len(reads) < 2 or reads[-1] != receipt or helper.read_record(record) != receipt:
-        raise LifecycleError("handoff correction missing repeated unchanged-record readback")
-    return {"initial_turn_id": initial, "corrected_turn_id": completion["turn_id"],
-            "native_rejection_observed": True, "final_link_correct": True,
-            "record_sha256": receipt["sha256"], "record_unchanged": True,
-            "readbacks": len(reads)}
-
-
 def prepare(output):
     package = load_module("hook_package", ROOT / "scripts/package.py")
     archive = output / "source.zip"
@@ -254,7 +173,9 @@ def prepare(output):
     (output / "native_hook_probe.py").write_text(WRAPPER)
     config = json.loads((output / "reefstack/hooks/hooks.json").read_text())["hooks"]
     for name, groups in config.items():
-        mode = {"SessionStart": "session", "SubagentStart": "subagent", "Stop": "handoff"}[name]
+        mode = {"SessionStart": "session", "SubagentStart": "subagent"}.get(name)
+        if mode is None:
+            raise LifecycleError("unexpected source hook event: " + name)
         for group in groups:
             for handler in group["hooks"]:
                 if handler["type"] != "command":
@@ -395,7 +316,6 @@ def run_hook_delivery(output, model, effort, timeout, codex, subagent=True):
                                   "hook_proof": proof, "child_no_tools": True}
         else:
             report["subagent"] = {"status": "not requested"}
-        report["handoff_guard"] = probe_handoff(server, output, project, thread, model, effort)
         report["status"] = "passed"
     except Exception as error:
         report["error"] = type(error).__name__ + ": " + str(error)
@@ -416,7 +336,7 @@ def run_hook_delivery(output, model, effort, timeout, codex, subagent=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--model", default="gpt-6-luna")
+    parser.add_argument("--model", required=True)
     parser.add_argument("--effort", default="low")
     parser.add_argument("--timeout", default=120, type=float)
     parser.add_argument("--codex", default="codex")

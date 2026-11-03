@@ -25,6 +25,6 @@ An instruction to skip tests covers the request it was given for. Before opening
 
 Verify artifacts returned by workers before accepting them. Tie receipts to the current code state and affected environment. Re-run the checks affected by subsequent edits; keep unchanged evidence when it remains valid.
 
-Link receipts and gaps from the existing [task record](../../references/task-record.md), including dirty-file state when a commit alone cannot identify the artifact. On resume, missing or affected receipts need revalidation; a remembered pass is not evidence. Do not create a record just for a small check.
+Report receipts and gaps with dirty-file state when a commit alone cannot identify the artifact. On resume, missing or affected receipts need revalidation; a remembered pass is not evidence.
 
 When a required check is unavailable, identify the exact missing access, runtime, or fixture. Report blocked or unverified coverage and continue independent checks. Never weaken checks, invent results, or count a skipped check as passing. Hand material gaps to [review](../review/SKILL.md). The final report names the checks that were not run and carries reviewer caveats and known limitations.

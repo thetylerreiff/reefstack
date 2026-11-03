@@ -3,20 +3,19 @@
 Run this opt-in, authenticated test separately from unit checks:
 
 ```sh
-python3 scripts/run_hook_delivery.py --output /private/tmp/reefstack-hooks-<fresh-name>
+python3 scripts/run_hook_delivery.py --output /private/tmp/reefstack-hooks-<fresh-name> --model <model>
 ```
 
-The default model is `gpt-6-luna`, effort `low`. `--model`, `--effort`, and
-`--timeout` override them. The test uses tokens and creates native persisted
+`--model` is required. Effort defaults to `low`; `--effort` and `--timeout`
+override the defaults. The test uses tokens and creates native persisted
 thread history under the existing Codex account. `--skip-subagent` omits child
 coverage and records it as not requested.
 
 The probe builds a fresh source archive and runs its actual `scripts/context.py`
-through Codex's native `SessionStart` and `SubagentStart` command hooks, and
-`scripts/handoff_guard.py` through `Stop`. It retains
+through Codex's native `SessionStart` and `SubagentStart` command hooks. It retains
 the repository's matchers, timeouts, and context limits. A temporary wrapper
 passes real native stdin to that adapter, records its output, and appends a fresh
-random token. The token is absent from user prompts. The Stop wrapper passes the handoff guard’s result through unchanged. This is an instrumented
+random token. The token is absent from user prompts. This is an instrumented
 transport check, not an unmodified production-hook test.
 
 Delivery uses invocation-only `hooks` configuration and exact-hash `hooks.state`
@@ -40,7 +39,6 @@ A successful result requires:
 - When requested, one child receives native `SubagentStart` context, with matched
   hook events for that child's thread and turn. Native child history confirms its
   reply and the absence of tool/file reads; the parent returns that same token.
-- A final handoff probe deliberately omits the first record link, requires a native Stop rejection, then requires a second readback and correct final link with no record edits.
 - Ordinary visibility turns use no tools; the parent child-delivery turn allows only spawning/waiting for its child. Missing evidence, untrusted hooks,
   failed RPCs, or protocol errors fail closed.
 
@@ -57,7 +55,7 @@ This proves native event dispatch, real adapter command transport, and visible
 context under the scoped invocation configuration. It does **not** prove plugin
 installation, marketplace discovery, trust onboarding, desktop delivery, or the
 behavioral quality of the supplied instructions. `run_lifecycle.py` separately
-exercises staged task continuity using supplied developer instructions; it does
+exercises staged task continuity through a plan file using supplied developer instructions; it does
 not establish hook delivery.
 
 The local CLI 0.160.0 schema also accepts `selectedCapabilityRoots`. A bounded

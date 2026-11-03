@@ -33,17 +33,6 @@ FAKE_AGENT = textwrap.dedent('''
     app = pathlib.Path("pantry/app.py")
     if "Quantitiy" in prompt:
         app.write_text(app.read_text().replace("Quantitiy", "Quantity"))
-    if os.environ.get("FAKE_TASK_RECORD"):
-        record = pathlib.Path(".reefstack/tasks/header.md")
-        record.parent.mkdir(parents=True, exist_ok=True)
-        record.write_text("Fix the header.\\n")
-        if os.environ.get("FAKE_IGNORED_TASK_RECORD"):
-            with pathlib.Path(".git/info/exclude").open("a") as exclude:
-                exclude.write("\\n.reefstack/tasks/\\n")
-            record.write_text("FINAL_LOCAL_RECORD: import implemented and verified.\\n")
-            evidence = record.parent / "header-evidence/output.txt"
-            evidence.parent.mkdir()
-            evidence.write_text("SAVED_LOCAL_EVIDENCE: all rows validated before saving.\\n")
     if "/export/items.csv" in prompt:
         app.write_text(app.read_text().replace('"/items/export"', '"/export/items.csv"'))
         if os.environ.get("FAKE_UPDATE_MAP"):
@@ -91,7 +80,7 @@ class RunEvalsTests(unittest.TestCase):
         agent_script = self.temp / "agent.py"
         agent_script.write_text(FAKE_AGENT)
         self.agent = {"command": f'"{sys.executable}" "{agent_script}" --model {{model}}',
-                      "model": "gpt-6-luna", "timeout": 60}
+                      "model": "gpt-test-agent", "timeout": 60}
         self.judge_info = {"provider": "anthropic", "model": "claude-judge"}
 
     def tearDown(self):
@@ -114,7 +103,7 @@ class RunEvalsTests(unittest.TestCase):
         for required in ("web-ui-change-driven", "web-typo-no-launch", "web-launch-blocked",
                          "web-route-moved-updates-map", "cli-command-renamed-updates-map",
                          "review-flags-stale-map", "review-fix-refreshes-map",
-                         "workflow-substantial-record", "workflow-resume-new-constraint",
+                         "workflow-substantial-import", "workflow-resume-new-constraint",
                          "workflow-read-only-pickup", "playbook-refactor-preserves-behavior",
                          "playbook-performance-measured", "playbook-prototype-disposable"):
             self.assertIn(required, CASES)
@@ -150,7 +139,7 @@ class RunEvalsTests(unittest.TestCase):
 
 
     def test_import_case_requires_new_command_coverage_not_just_valid_shape(self):
-        case = CASES["workflow-substantial-record"]
+        case = CASES["workflow-substantial-import"]
         project, base, head = RUN_EVALS.prepare_workspace(
             case, ROOT / "evaluations/fixtures", self.temp)
         checks = RUN_EVALS.run_checks(case, project, base, head)
@@ -225,9 +214,9 @@ class RunEvalsTests(unittest.TestCase):
                     case, ROOT / "evaluations/fixtures", self.temp / name)
                 self.assertNotEqual(base, head)
                 self.assertEqual(RUN_EVALS.git(project, "status", "--porcelain"), "")
-                record = project / ".reefstack/tasks/report-command.md"
-                self.assertTrue(record.is_file())
-                self.assertIn("not proof of the current checkout", record.read_text())
+                note = project / "docs/plans/report-command.md"
+                self.assertTrue(note.is_file())
+                self.assertIn("in its own checkout", note.read_text())
                 self.assertIn('run_cli("summary")', (project / "test_tally.py").read_text())
                 env = {**os.environ, "TALLY_HOME": str(self.temp / (name + "-data"))}
                 for args, status in ((("add", "12.25", "food"), 0), (("report",), 0),
@@ -244,7 +233,7 @@ class RunEvalsTests(unittest.TestCase):
                 self.assertIn("test_summary_totals_per_category", result.stderr)
                 check = {"checks": ["no_edits"]}
                 self.assertTrue(RUN_EVALS.run_checks(check, project, base, head)["no_edits"]["passed"])
-                record.write_text(record.read_text() + "\nAll done.\n")
+                note.write_text(note.read_text() + "\nAll done.\n")
                 self.assertFalse(RUN_EVALS.run_checks(check, project, base, head)["no_edits"]["passed"])
 
     def test_no_edits_rejects_staged_untracked_and_committed_handoff_changes(self):
@@ -253,37 +242,16 @@ class RunEvalsTests(unittest.TestCase):
                 case = CASES["workflow-read-only-pickup"]
                 project, base, head = RUN_EVALS.prepare_workspace(
                     case, ROOT / "evaluations/fixtures", self.temp / change)
-                record = project / ".reefstack/tasks/next.md"
-                record.write_text("Next: finish command integration.\n")
+                note = project / "docs/plans/next.md"
+                note.write_text("Next: finish command integration.\n")
                 if change != "untracked":
                     RUN_EVALS.git(project, "add", "-A")
                 if change == "committed":
-                    RUN_EVALS.git(project, "commit", "-q", "-m", "Record next step")
+                    RUN_EVALS.git(project, "commit", "-q", "-m", "Note next step")
                 result = RUN_EVALS.run_checks(case, project, base, head)["no_edits"]
                 self.assertFalse(result["passed"])
                 self.assertIn("new commits" if change == "committed" else "working tree changed",
                               result["detail"])
-
-    def test_no_task_record_finds_ignored_and_committed_records(self):
-        case = CASES["web-typo-no-launch"]
-        project, base, head = RUN_EVALS.prepare_workspace(
-            case, ROOT / "evaluations/fixtures", self.temp / "small")
-        check = {"checks": ["no_task_record"]}
-        app = project / "pantry/app.py"
-        app.write_text(app.read_text().replace("Quantitiy", "Quantity"))
-        self.assertTrue(RUN_EVALS.run_checks(check, project, base, head)["no_task_record"]["passed"])
-        with (project / ".gitignore").open("a") as stream:
-            stream.write("\n.reefstack/\n")
-        record = project / ".reefstack/tasks/header.md"
-        record.parent.mkdir(parents=True)
-        record.write_text("Fix the header.\n")
-        for committed in (False, True):
-            if committed:
-                RUN_EVALS.git(project, "add", "-f", ".reefstack/tasks/header.md")
-                RUN_EVALS.git(project, "commit", "-q", "-m", "Record header work")
-            result = RUN_EVALS.run_checks(check, project, base, head)["no_task_record"]
-            self.assertFalse(result["passed"])
-            self.assertIn(".reefstack/tasks/header.md", result["detail"])
 
     def test_workflow_patches_survive_release_packaging_and_stay_blind(self):
         package = RUN_EVALS.load_module("workflow_package", ROOT / "scripts/package.py")
@@ -300,92 +268,8 @@ class RunEvalsTests(unittest.TestCase):
         case = cases["workflow-read-only-pickup"]
         project, base, head = runner.prepare_workspace(case, release / "evaluations/fixtures",
                                                       self.temp / "from-release")
-        self.assertTrue((project / ".reefstack/tasks/report-command.md").is_file())
+        self.assertTrue((project / "docs/plans/report-command.md").is_file())
         self.assertTrue(runner.run_checks(case, project, base, head)["no_edits"]["passed"])
-
-    def test_no_task_record_rejects_a_replaced_record_directory(self):
-        case = CASES["web-typo-no-launch"]
-        project, base, head = RUN_EVALS.prepare_workspace(
-            case, ROOT / "evaluations/fixtures", self.temp / "replaced")
-        directory = project / ".reefstack/tasks"
-        directory.parent.mkdir()
-        for kind in ("file", "dangling link"):
-            with self.subTest(kind=kind):
-                if kind == "file":
-                    directory.write_text("Local task state")
-                else:
-                    directory.symlink_to("missing-records", target_is_directory=True)
-                result = RUN_EVALS.run_checks(
-                    {"checks": ["no_task_record"]}, project, base, head)["no_task_record"]
-                self.assertFalse(result["passed"])
-                directory.unlink()
-
-    def test_small_case_fails_when_agent_creates_a_task_record(self):
-        case = CASES["web-typo-no-launch"]
-        _, report, _ = self.suite([case], [verdict(case)], env={"FAKE_TASK_RECORD": "1"})
-        result = report["results"][0]
-        self.assertFalse(result["checks"]["no_task_record"]["passed"])
-        self.assertFalse(result["passed"])
-
-    def test_substantial_case_requires_a_nonempty_record_even_when_judge_passes(self):
-        case = CASES["workflow-substantial-record"]
-        _, report, _ = self.suite([case], [verdict(case)])
-        self.assertFalse(report["results"][0]["passed"])
-        self.assertFalse(report["results"][0]["checks"]["task_record"]["passed"])
-        project, base, head = RUN_EVALS.prepare_workspace(
-            case, ROOT / "evaluations/fixtures", self.temp / "record")
-        record = project / ".reefstack/tasks/import.md"
-        record.parent.mkdir(parents=True)
-        record.write_text(" \n")
-        checks = {"checks": ["task_record"]}
-        self.assertFalse(RUN_EVALS.run_checks(checks, project, base, head)["task_record"]["passed"])
-        record.write_text("# Import expenses\n\nNext action: verify failed imports leave the ledger unchanged.\n")
-        self.assertTrue(RUN_EVALS.run_checks(checks, project, base, head)["task_record"]["passed"])
-
-    def test_ignored_task_state_survives_cleanup_and_rejudging(self):
-        case = CASES["workflow-substantial-record"]
-        out_dir, report, judge = self.suite(
-            [case], [verdict(case)], env={"FAKE_TASK_RECORD": "1", "FAKE_IGNORED_TASK_RECORD": "1"})
-        case_dir = out_dir / "cases" / case["id"] / "run-1"
-        self.assertTrue(report["results"][0]["checks"]["task_record"]["passed"])
-        self.assertNotIn("FINAL_LOCAL_RECORD", (case_dir / "diff.patch").read_text())
-        self.assertNotIn("FINAL_LOCAL_RECORD", (case_dir / "transcript.txt").read_text())
-        state = json.loads((case_dir / "task-state.json").read_text())
-        self.assertIn("FINAL_LOCAL_RECORD", state["files"][".reefstack/tasks/header.md"])
-        for marker in ("FINAL_LOCAL_RECORD", "SAVED_LOCAL_EVIDENCE"):
-            self.assertIn(marker, judge.prompts[0])
-        self.assertIn("SAVED_LOCAL_EVIDENCE", (case_dir / "task-state/.reefstack/tasks/header-evidence/output.txt").read_text())
-        later = MockJudge([verdict(case)])
-        RUN_EVALS.rejudge(out_dir, later, self.judge_info, list(CASES.values()), retry_all=True)
-        self.assertIn("FINAL_LOCAL_RECORD", later.prompts[0])
-        self.assertIn("SAVED_LOCAL_EVIDENCE", later.prompts[0])
-
-    def test_task_snapshot_bounds_data_and_preserves_binary_without_following_links(self):
-        project = self.temp / "snapshot-project"
-        records = project / ".reefstack/tasks"
-        records.mkdir(parents=True)
-        (records / "a.bin").write_bytes(b"\xff\x00")
-        (records / "large.txt").write_bytes(b"x" * 32)
-        outside = self.temp / "private.txt"
-        outside.write_text("PRIVATE_CONTENT")
-        (records / "linked.txt").symlink_to(outside)
-        output = self.temp / "snapshot"
-        output.mkdir()
-        with mock.patch.object(RUN_EVALS, "MAX_TASK_SNAPSHOT_BYTES", 8):
-            RUN_EVALS.capture_task_state(project, output)
-        self.assertEqual((output / "task-state/.reefstack/tasks/a.bin").read_bytes(), b"\xff\x00")
-        state = json.loads((output / "task-state.json").read_text())
-        self.assertIn("not rendered", state["files"][".reefstack/tasks/a.bin"]["note"])
-        self.assertIn(".reefstack/tasks/large.txt: snapshot byte limit", state["unavailable"])
-        self.assertIn(".reefstack/tasks/linked.txt: symlink not followed", state["unavailable"])
-        self.assertNotIn("PRIVATE_CONTENT", json.dumps(state))
-        linked_project = self.temp / "linked-project"
-        linked_project.mkdir()
-        (linked_project / ".reefstack").symlink_to(project / ".reefstack", target_is_directory=True)
-        RUN_EVALS.capture_task_state(linked_project, output)
-        state = json.loads((output / "task-state.json").read_text())
-        self.assertEqual(state["files"], {})
-        self.assertIn("linked directory not followed", state["unavailable"][0])
 
     def test_end_to_end_records_models_scores_reasons_and_artifacts(self):
         case = CASES["web-typo-no-launch"]
@@ -393,7 +277,7 @@ class RunEvalsTests(unittest.TestCase):
         self.assertEqual(out_dir.name, "2026-10-10-reefstack")
         saved = json.loads((out_dir / "results.json").read_text())
         self.assertEqual(saved["date"], "2026-10-10T12:00:00+00:00")
-        self.assertEqual((saved["agent"]["model"], saved["agent"]["family"]), ("gpt-6-luna", "openai"))
+        self.assertEqual((saved["agent"]["model"], saved["agent"]["family"]), ("gpt-test-agent", "openai"))
         self.assertEqual((saved["judge"]["model"], saved["judge"]["family"]), ("claude-judge", "anthropic"))
         result = saved["results"][0]
         self.assertEqual((result["score"], result["passed"]), (1.0, True))
@@ -404,7 +288,7 @@ class RunEvalsTests(unittest.TestCase):
         self.assertIn("visible settings: []", transcript)
         self.assertIn("web-typo-no-launch", (out_dir / "summary.md").read_text())
         # The judge sees a neutral label, never the agent's model or the case id; the key is never written.
-        self.assertNotIn("gpt-6-luna", judge.prompts[0])
+        self.assertNotIn("gpt-test-agent", judge.prompts[0])
         self.assertNotIn("web-typo-no-launch", judge.prompts[0])
         self.assertIn("Session: session-1", judge.prompts[0])
         for path in out_dir.rglob("*"):
@@ -604,19 +488,19 @@ class RunEvalsTests(unittest.TestCase):
         env = {**os.environ, "REEFSTACK_JUDGE_PROVIDER": "command", "REEFSTACK_JUDGE_MODEL": "claude-judge",
                "REEFSTACK_JUDGE_COMMAND": f'"{sys.executable}" "{judge_script}"'}
         command = [sys.executable, str(ROOT / "scripts/run_evals.py"), "--case", case["id"],
-                   "--agent-model", "gpt-6-luna", "--agent-command", self.agent["command"],
+                   "--agent-model", "gpt-test-agent", "--agent-command", self.agent["command"],
                    "--results", str(self.temp / "cli results")]
         run = subprocess.run(command, text=True, capture_output=True, env=env)
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("1 of 1 case runs passed; stopping rule not met", run.stdout)
         same_family = subprocess.run(command[:-2] + ["--results", str(self.temp / "r2")], text=True,
-                                     capture_output=True, env={**env, "REEFSTACK_JUDGE_MODEL": "gpt-6-astra"})
+                                     capture_output=True, env={**env, "REEFSTACK_JUDGE_MODEL": "gpt-test-judge"})
         self.assertEqual(same_family.returncode, 2)
         self.assertIn("both openai models", same_family.stderr)
         self.assertFalse((self.temp / "r2").exists())
 
     def test_model_families(self):
-        for model, family in (("gpt-6.1-sol", "openai"), ("claude-judge", "anthropic"), ("o4-mini", "openai"),
+        for model, family in (("gpt-test-model", "openai"), ("claude-judge", "anthropic"), ("o4-mini", "openai"),
                               ("gemini-3-pro", "google"), ("vendor/claude-x", "anthropic"), ("mystery", "unknown")):
             self.assertEqual(RUN_EVALS.model_family(model), family)
 

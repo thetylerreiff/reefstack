@@ -6,15 +6,15 @@ What a run shows: how one agent model, with whatever Reefstack setup its host ha
 
 ## Workflow coverage
 
-The small typo case requires a direct edit without creating a task record. `workflow-substantial-record` asks for a CSV import command with validation and persistence constraints; its rubric checks for a useful, current record alongside implementation and integration evidence.
+The small typo case requires a direct edit without planning ceremony. `workflow-substantial-import` asks for a CSV import command with validation and persistence constraints; its rubric checks implementation, integration evidence, and an updated verification map.
 
-`workflow-resume-new-constraint` and `workflow-read-only-pickup` start new agent sessions with a supplied record under `.reefstack/tasks/`. A setup patch applies a partial command rename and the record as an ordinary project commit. The record describes returned worker changes and older verification from another checkout; the current project still lacks those test and documentation changes. The resume request adds a newer requirement to preserve the old command as an alias. The read-only request asks for an assessment and next step without edits, including record edits.
+`workflow-resume-new-constraint` and `workflow-read-only-pickup` start new agent sessions with a handoff note at `docs/plans/report-command.md`. A setup patch applies a partial command rename and the note as an ordinary project commit. The note describes worker changes and verification from another checkout; the current project still lacks those test and documentation changes. The resume request adds a newer requirement to preserve the old command as an alias. The read-only request asks for an assessment and next step without edits, including edits to the note.
 
-These are supplied-record continuation scenarios. They check whether the agent reconciles the handoff with current instructions, Git state, source, evidence and user intent. They do not simulate native compaction, retain an earlier conversation, launch real workers for the handoff, or prove multi-turn continuity. Preparing the patch and running deterministic checks proves the setup and checks work; behavioral acceptance still needs recorded agent sessions and judgments.
+These are supplied-handoff continuation scenarios. They check whether the agent treats the note as context rather than proof and rechecks its claims against current instructions, Git state, source, evidence and user intent. They do not simulate native compaction, retain an earlier conversation, launch real workers for the handoff, or prove multi-turn continuity. Preparing the patch and running deterministic checks proves the setup and checks work; behavioral acceptance still needs recorded agent sessions and judgments.
 
 The separate [native lifecycle probe](../harness/lifecycle.md) runs an actual staged conversation through compaction and an app-server process restart. It supplies current repository guidance and excludes installed plugins per turn to avoid testing an older cached release. It is an acceptance probe with explicit staged prompts, not part of this blinded suite or proof of native hook delivery.
 
-The fixture records are stored inside patches because release packaging excludes literal dot directories. Packaging tests extract the release, prepare the patched Git project, and exercise its checks so that this coverage works from an archive too.
+The note ships inside the setup patch so it arrives in the same commit as the partial change. Packaging tests extract the release, prepare the patched Git project, and exercise its checks so that this coverage works from an archive too.
 
 ## Refactor, performance and prototype coverage
 
@@ -42,8 +42,8 @@ in `tests/test_playbook_behavior.py`.
   with no match, plus observed count and weight changes. Screenshots of an inert
   design or a production implementation cannot pass it.
 
-These cases select different procedures without imposing a task record merely
-because a playbook exists. The small no-record and supplied-record continuation
+These cases select different procedures without imposing extra ceremony merely
+because a playbook exists. The small typo and supplied-handoff continuation
 cases above remain separate checks of proportional effort and resumed work.
 
 Run one live session per case with the regular agent/judge configuration:
@@ -127,11 +127,9 @@ Each run writes `evaluations/results/<date>-<label>/`:
 
 How to read them:
 
-- **Score** is the fraction of rubric criteria the judge passed. **Passed** needs every criterion, every requested deterministic check (`map_lint`, `map_current`, `import_map_entry`, `no_edits`, `no_task_record`, `task_record`, `task_handoff`), an agent exit status of 0, and no possible unblinding. A judge error, an unparseable reply, a timeout, or a crashed agent is a failure, never a pass.
+- **Score** is the fraction of rubric criteria the judge passed. **Passed** needs every criterion, every requested deterministic check (`map_lint`, `map_current`, `import_map_entry`, `no_edits`), an agent exit status of 0, and no possible unblinding. A judge error, an unparseable reply, a timeout, or a crashed agent is a failure, never a pass.
 - `import_map_entry` is specific to the import fixture: it requires a typed CLI entry for `tally import` under a feature's `How to reach it` section. Shape lint alone cannot detect a new command missing from an otherwise valid map.
-- `task_record` requires a nonempty Markdown record under `.reefstack/tasks/` for the substantial fixture. Its semantic accuracy, evidence, and current state are assessed by the rubric, not the file-existence check. Before workspace cleanup, `task-state.json` and `task-state/` preserve final records and supporting files independently of Git ignore rules. Judging and rejudging use that same snapshot. It is limited to 2 MB and 256 entries, never follows symlinks, and lists omissions; binary files are preserved for inspection but are not rendered to the text judge. References outside the task directory still need evidence in the transcript or diff.
-- `task_handoff` requires a successful `task_handoff.py` readback matching the final record bytes and the returned link in the last assistant message. It catches both omitted readback/link and a readback made stale by later edits. This check currently parses Codex `--json` events; unsupported transcript formats fail closed and need an adapter. It proves observed transport and file identity, not the truth of the record.
-- `no_task_record` fails when any file or symlink is present under `.reefstack/tasks/`, including ignored or committed files. It guards the default record location for the small task; its rubric also checks for unnecessary planning and delegation. `no_edits` rejects tracked or untracked working-tree changes and new commits, so a read-only handoff cannot be satisfied by updating the supplied record. Git-ignored runtime files such as Python bytecode do not count as edits.
+- `no_edits` rejects tracked or untracked working-tree changes and new commits, so a read-only handoff cannot be satisfied by updating the supplied note. Git-ignored runtime files such as Python bytecode do not count as edits.
 - `judge_input_truncated` lists inputs cut in the middle to fit the judge (over 300,000 characters of transcript or 200,000 of diff). A criterion about omitted output may then be unjudgeable; read the saved files.
 - Deterministic checks outrank the judge. When they disagree, read the transcript.
 - Read a sample of transcripts and diffs yourself, including every failure. Repeated disagreement with the judge means a biased judge or an ambiguous criterion: fix the criterion and say so in the commit, rather than accepting either side silently.
