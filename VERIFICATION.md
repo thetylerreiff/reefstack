@@ -12,7 +12,7 @@ The local health check and unittest suite exercise:
 - Input/settings rejection and exclusion of untrusted payload text from generated context.
 - Relocation and shell quoting when the package path contains spaces.
 - Separation of coordinator and delegated-agent context.
-- Separation of core procedures from named host mechanics, with no model names in core procedures.
+- Separation of core procedures from named host mechanics, with no Codex model names in core procedures.
 - Standalone archive layout, inclusion, exclusions, output safety, and extraction.
 - Feature-map lint: required sections and order, typed non-empty entry points, index coverage, `Last checked` statuses, CLI exit codes, and health's lint of the packaged template and any `docs/verification/`.
 - Map drift check (`--since`): a renamed route in the web fixture and a renamed subcommand in the CLI fixture are flagged in real git repositories, and clear once the map moves or the old name is kept as an alias.
@@ -30,7 +30,7 @@ CI runs the package health check and tests and checks an extracted standalone ar
 
 On November 3, 2026, Reefstack dropped named model roles, packaged model defaults, the durable task record, its handoff helper, and the Stop hook. Resume became a record-free pickup procedure. Review now covers every non-trivial deliverable, scaled to its size; Verify adds a claims list, the key safety fact proven by running code, and accept-or-reject for every helper or reviewer finding; a user's request to make a change quick skips the reviewer. Sections below that describe records, `task_handoff.py`, the Stop hook, or role models record earlier versions.
 
-Health, all 111 unit tests, the evaluation-suite check, and packaging passed on the final source. Five realistic routing cases were added for the quick path, a quick question, light review, a user-stated review cadence, and a recurring bug class. They are specifications; no agent or judge run, live hook probe, or lifecycle probe has been run against 0.3.0, so behavior under these procedures is unverified until used.
+Health, all 112 unit tests, the evaluation-suite check, and packaging passed on the final source. Five realistic routing cases were added for the quick path, a quick question, light review, a user-stated review cadence, and a recurring bug class. They are specifications; no agent or judge run, live hook probe, or lifecycle probe has been run against 0.3.0, so behavior under these procedures is unverified until used.
 
 ## Behavioral evidence and limits
 

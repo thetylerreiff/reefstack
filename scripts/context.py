@@ -35,6 +35,8 @@ def load_settings(root=ROOT, data_directory=None):
         override = Path(data_directory) / "settings.json"
         if override.exists():
             values = read_json(override)
+            # 0.2.x overrides could set helper models; those settings no longer exist.
+            values.pop("models", None)
             validate_settings(values)
             settings.update(values)
     return settings

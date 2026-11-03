@@ -10,9 +10,9 @@ Optimize time to verified completion while preserving correctness and maintainab
 ## Choose the procedure and the depth separately
 
 - **Small, obvious work:** edit directly and perform a focused check. No playbook, full skill chain, delegation, or mandatory independent review.
-- **Routine, bounded work:** use the matching procedure when it helps, including a one-pass PR status check. Apply only relevant steps and targeted checks, then a light fresh review. Selecting a playbook does not require delegation.
-- **Substantial or consequential work:** follow the matching playbook and obtain a full fresh review aimed at the key fact.
-- **Quick, at the user's request:** focused checks only, with no reviewer or extra procedure; claims still carry evidence or a gap. Persistence guarantees, permissions, shared state, uncertain integrations, and difficult logic can be consequential even in one file.
+- **Routine, bounded work:** use the matching procedure when it helps, including a one-pass PR status check. Apply only relevant steps and targeted checks; a routine change then gets a light fresh review. Selecting a playbook does not require delegation.
+- **Substantial or consequential work:** follow the matching playbook and obtain a full fresh review aimed at the key fact. Persistence guarantees, permissions, shared state, uncertain integrations, and difficult logic can be consequential even in one file.
+- **Quick, at the user's request:** focused checks only, with no reviewer or extra procedure; claims still carry evidence or a gap.
 
 Judge depth by coupling, uncertainty, impact, and verification needs, not file count or keywords. Adjust it as evidence changes. Do not ask the user to choose a tier.
 

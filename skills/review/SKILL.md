@@ -5,16 +5,16 @@ description: Obtain and assess fresh independent review for every non-trivial de
 
 # Review
 
-Use [the review rubric](../../references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit, or a change the user asked to make quick, does not require a reviewer.
+Use [the review rubric](../../references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit, a change the user asked to make quick, a verification map written on request, and a disposable prototype do not require a reviewer unless the user asks.
 
 ## When and how much
 
 Every non-trivial deliverable gets a fresh read-only reviewer once it is integrated, every worker has sent its final result, and edits have stopped. The unit is a deliverable the user would recognize (a fix, a feature, a PR), not each internal milestone or worker piece. A review cadence the user states overrides this default.
 
-- **Small or routine change:** give the reviewer the stated intent, the diff, and the claims from [verify](../verify/SKILL.md). Ask it to check the intended case and broken callers.
+- **Routine change:** give the reviewer the stated intent, the diff, and the claims from [verify](../verify/SKILL.md). Ask it to check the intended case and broken callers.
 - **Large or risky change:** also give relevant surrounding source, acceptance criteria, verification evidence, and the key fact the change is safe because of. Ask the reviewer to try to break that fact, running a check where it can rather than only reading. For a user-facing change, include the per-path verification report and the `docs/verification/` files for the features the diff touches. Changes to authentication, permissions, migrations, money, or data deletion are risky whatever their size.
 
-Avoid supplying a persuasive implementation narrative. If the diff changes before you report the verdict, have the reviewer recheck the changed areas. If no independent reviewer is available, perform a focused self-check and label independent review unverified; do not claim that the full loop passed. A reviewer that times out or returns nothing has not approved.
+Avoid supplying a persuasive implementation narrative. If late edits that are not responses to findings change the diff before you report the verdict, have the reviewer recheck those areas. If no independent reviewer is available, perform a focused self-check and label independent review unverified; do not claim that the full loop passed. A reviewer that times out or returns nothing has not approved.
 
 ## Resolve findings
 

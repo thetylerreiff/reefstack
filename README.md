@@ -127,7 +127,7 @@ The skill names organize the implementation. They are not a vocabulary you need 
 
 The main agent keeps the model and reasoning effort selected in your chat, and chooses helpers' models and effort for the work. Reefstack names no models.
 
-Packaged settings live in [settings.json](settings.json). Setting `"enabled": false` in `settings.json` under the installed plugin's `PLUGIN_DATA` directory suppresses Reefstack's hook context.
+Packaged settings live in [settings.json](settings.json). Setting `"enabled": false` in `settings.json` under the installed plugin's `PLUGIN_DATA` directory suppresses Reefstack's hook context. A `models` entry left from 0.2.x is ignored; you can delete it.
 
 ## Architecture
 

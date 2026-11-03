@@ -1,4 +1,3 @@
-import copy
 import importlib.util
 import json
 import os
@@ -29,6 +28,12 @@ class ContextTests(unittest.TestCase):
             Path(data, "settings.json").write_text('{"enabled": false}')
             self.assertEqual(CONTEXT.load_settings(data_directory=data), {"enabled": False})
             self.assertEqual(CONTEXT.load_settings(), {"enabled": True})
+
+    def test_leftover_model_override_is_ignored_not_fatal(self):
+        with tempfile.TemporaryDirectory() as data:
+            Path(data, "settings.json").write_text('{"models": {"worker": {"model": "any"}}}')
+            self.assertEqual(CONTEXT.load_settings(data_directory=data), {"enabled": True})
+            self.assertIn("hookSpecificOutput", CONTEXT.context_result("session", {}, data_directory=data))
 
     def test_disabled_setting_supplies_no_context(self):
         with tempfile.TemporaryDirectory() as data:
