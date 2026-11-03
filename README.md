@@ -61,8 +61,9 @@ The main agent owns intent, difficult boundaries, the critical path, integration
 | Work | Expected depth |
 | --- | --- |
 | Small, known local change | Direct edit and a focused check. No design exercise, delegation, or required independent review. |
-| Routine bounded change | Relevant inspection and targeted checks. More rigor when a concrete uncertainty or consequence warrants it. |
-| Substantial or consequential change | Proved contracts, coordinated implementation, behavioral integration checks, and fresh independent review. |
+| Routine bounded change | Relevant inspection, targeted checks, and a light fresh review of the intended case and callers. |
+| Substantial or consequential change | Proved contracts, coordinated implementation, behavioral integration checks, and a full fresh review aimed at the fact the change is safe because of. |
+| Any change you ask to make quick | Focused checks only, with no reviewer or extra procedure. Claims still carry evidence or a gap. |
 
 Depth depends on coupling, uncertainty, impact, and verification needs. File count and the word *feature* do not decide it. A one-line permission change can deserve more scrutiny than a large mechanical edit.
 

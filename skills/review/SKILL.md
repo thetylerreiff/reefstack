@@ -1,20 +1,29 @@
 ---
 name: review
-description: Obtain and assess fresh independent review for substantive engineering changes, tracing material findings and rechecking accepted fixes.
+description: Obtain and assess fresh independent review for every non-trivial deliverable, scaled to its size, tracing material findings and rechecking accepted fixes.
 ---
 
 # Review
 
-Use [the review rubric](../../references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit does not require this procedure or a reviewer agent.
+Use [the review rubric](../../references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit, or a change the user asked to make quick, does not require a reviewer.
 
-For substantial implementation, spawn a fresh read-only reviewer with intent, the current diff, relevant surrounding source, acceptance criteria, and verification evidence. For a user-facing change, include the per-path verification report and the `docs/verification/` files for the features the diff touches, so the reviewer can compare them. Start it only after every worker has sent its final result and edits have stopped; if the diff changes before you report the verdict, have the reviewer recheck the changed areas first. Avoid supplying a persuasive implementation narrative. Give the reviewer more depth when the change touches authentication, permissions, migrations, money, or data deletion.
+## When and how much
 
-If no independent reviewer is available, perform a focused self-check and label independent review unverified; do not claim that the full loop passed.
+Every non-trivial deliverable gets a fresh read-only reviewer once it is integrated, every worker has sent its final result, and edits have stopped. The unit is a deliverable the user would recognize (a fix, a feature, a PR), not each internal milestone or worker piece. A review cadence the user states overrides this default.
+
+- **Small or routine change:** give the reviewer the stated intent, the diff, and the claims from [verify](../verify/SKILL.md). Ask it to check the intended case and broken callers.
+- **Large or risky change:** also give relevant surrounding source, acceptance criteria, verification evidence, and the key fact the change is safe because of. Ask the reviewer to try to break that fact, running a check where it can rather than only reading. For a user-facing change, include the per-path verification report and the `docs/verification/` files for the features the diff touches. Changes to authentication, permissions, migrations, money, or data deletion are risky whatever their size.
+
+Avoid supplying a persuasive implementation narrative. If the diff changes before you report the verdict, have the reviewer recheck the changed areas. If no independent reviewer is available, perform a focused self-check and label independent review unverified; do not claim that the full loop passed. A reviewer that times out or returns nothing has not approved.
+
+## Resolve findings
+
+Read findings and trace evidence yourself. Judge each finding's severity yourself, whatever label it came with: a rare path, a small cost, or an extra guard is P3. Accept or reject every finding with a one-line reason; nothing is silently dropped. Fix accepted findings with the smallest change, preferring one that deletes or narrows code. If fixes grew the diff, cut before adding more. List declined out-of-scope items as follow-ups.
+
+After fixing a P1 or P2, rerun affected checks and have a reviewer recheck the changed areas once. Repeat a full review only for security, authorization, or data-loss findings. Do not repeat an unchanged review after every local correction.
+
+When the same bug or finding appears a second time, sweep the whole class once instead of fixing the next instance, and follow [enforcement](../../references/enforcement.md): propose the check that makes it fail automatically, and record it in the project's failure log if one exists.
 
 A stale map entry is fixed in the same change, never deferred: update the feature file to the new entry point, run the map lint with `--since <base>`, drive the new entry point, and have the reviewer recheck those files. Unexercised or unsupported paths go back to [verify](../verify/SKILL.md) or are reported as gaps; they are not reworded into passes.
-
-When the same finding or failure appears a second time, follow [enforcement](../../references/enforcement.md): propose the check that makes it fail automatically, and record it in the project's failure log if one exists.
-
-Read findings and trace evidence yourself. Fix material accepted findings, explain dismissals, rerun affected checks, and recheck the changed areas once. Repeat a full review only for P1, security, authorization, or data-loss findings. A proved lone finding matters. Do not manufacture nits or repeat an unchanged complete review after every local correction.
 
 In a user-requested review, remain read-only and lead with actionable findings and file/line evidence. Review authorization alone is not implementation authorization.

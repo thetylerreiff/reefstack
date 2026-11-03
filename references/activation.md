@@ -4,7 +4,9 @@ Optimize time to verified, maintainable completion. Adapt to ordinary conversati
 
 An obvious small edit takes the direct path: edit and perform a focused check. No playbook, full skill chain, delegation, or required independent review. Routine work gets targeted checks and only useful procedure steps; choosing a playbook does not itself require helpers. Local environment setup stays direct.
 
-For other engineering work, read the coordinator below and select the playbook for the task type. The playbook owns sequencing; supporting skills provide methods. Scale rigor by uncertainty and consequences, not file count. Substantial implementation needs fresh independent review.
+For other engineering work, read the coordinator below and select the playbook for the task type. The playbook owns sequencing; supporting skills provide methods. Scale rigor by uncertainty and consequences, not file count. Every non-trivial deliverable gets a fresh reviewer, scaled to its size; Review defines how. Before finishing, state the claims the change makes, each with evidence or a gap.
+
+When the user asks to make a change quick ("make this quick", "quick fix"), do focused checks only: no reviewer, delegation, or extra procedure. Claims still carry evidence or a gap, and authorization and destructive-action limits still apply. "Quick question" or "quick answer" asks for a short reply, not less process.
 
 To continue interrupted work or take over someone else's, use the Resume playbook: rebuild state from current files, Git, and any plan or handoff note, and treat the handoff as context, not proof.
 

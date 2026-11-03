@@ -7,6 +7,18 @@ description: Verify requested engineering behavior on the relevant artifact and 
 
 Read [the verification standard](../../references/verification.md) when choosing checks for substantial work or any user-facing behavior change. Reuse repository commands and the relevant runtime harness. Do not require a broad suite, build, new tests, or live service access for every edit.
 
+## Claims first
+
+Before finishing anything beyond a small edit, restate the intended behavior in one sentence, then list what the change claims as behaviors a user can see, not test counts. Give each claim its evidence or mark it as a gap. Evidence comes from the thing the claim is about:
+
+- Start checks from the user's real starting state and entry point. Seeded data is fine; seeding the step the change is about is not, because it does that step for the user.
+- If the change ships, the build and deploy path it will take is checked or named as a gap.
+- For risky work, name the one fact the change is safe because of and prove it by running code, not by pointing at a line.
+
+Every finding a helper or reviewer reports is accepted or rejected with a reason in the final report.
+
+## Choose checks
+
 Choose checks that would fail if the requested behavior or boundary assumption were wrong. For substantial work, exercise component contracts and the appropriate runtime surface, not only compilation or isolated functions. Capture actual results and compare them with independent expected values.
 
 ## Drive the app for user-facing changes

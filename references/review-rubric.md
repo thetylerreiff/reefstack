@@ -38,6 +38,6 @@ Finding: what is wrong
 Evidence: the executable path or caller that triggers it
 ```
 
-Trace each finding to a real caller or input; a hypothetical case with no caller is not a finding. Do not turn speculative possibilities or personal style preferences into blockers. Preserve a proved single-reviewer finding; consensus is corroboration, not proof.
+P1 means the intended case is wrong; P2 is a real bug that callers in scope will hit; P3 is everything else, including other paths, rare cases, small costs, and extra guards. Trace each finding to a real caller or input; a hypothetical case with no caller is not a finding. Do not turn speculative possibilities or personal style preferences into blockers. Preserve a proved single-reviewer finding; consensus is corroboration, not proof.
 
 The coordinator filters rather than forwards: sort findings into fix, consider, and dismissed, each with a one-line reason, and keep the dismissed list visible. More than five fixes usually means the filter is too loose. Fix accepted findings, rerun affected checks, and recheck the relevant changes. Findings and verification belong to a particular revision; material later edits invalidate the affected verdict. Do not repeat an unchanged full review unless the fix exposes a wider issue.
