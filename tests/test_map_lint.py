@@ -10,7 +10,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SPEC = importlib.util.spec_from_file_location("reefstack_map_lint", ROOT / "scripts/map_lint.py")
+SPEC = importlib.util.spec_from_file_location("reefstack_map_lint", ROOT / "skills/map/scripts/map_lint.py")
 MAP_LINT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MAP_LINT)
 
@@ -112,7 +112,7 @@ class MapLintTests(unittest.TestCase):
         self.assertEqual(MAP_LINT.lint_files(files), [])
 
     def test_packaged_template_passes_its_own_lint(self):
-        files = MAP_LINT.template_files(ROOT / "references/feature-map-template.md")
+        files = MAP_LINT.template_files(ROOT / "skills/reefstack/references/feature-map-template.md")
         self.assertIn("README.md", files)
         self.assertGreater(len(files), 1)
         self.assertEqual(MAP_LINT.lint_files(files), [])
@@ -191,7 +191,7 @@ class MapLintTests(unittest.TestCase):
             directory.mkdir(parents=True)
             for name, text in valid_map().items():
                 (directory / name).write_text(text)
-            command = [sys.executable, str(ROOT / "scripts/map_lint.py"), str(directory)]
+            command = [sys.executable, str(ROOT / "skills/map/scripts/map_lint.py"), str(directory)]
             run = subprocess.run(command, text=True, capture_output=True)
             self.assertEqual(run.returncode, 0, run.stdout)
             self.assertIn("feature map ok", run.stdout)
@@ -199,7 +199,7 @@ class MapLintTests(unittest.TestCase):
             run = subprocess.run(command, text=True, capture_output=True)
             self.assertEqual(run.returncode, 1)
             self.assertIn("orders-api.md:9: empty entry point", run.stdout)
-            run = subprocess.run([sys.executable, str(ROOT / "scripts/map_lint.py"), str(Path(parent) / "absent")],
+            run = subprocess.run([sys.executable, str(ROOT / "skills/map/scripts/map_lint.py"), str(Path(parent) / "absent")],
                                  text=True, capture_output=True)
             self.assertEqual(run.returncode, 1)
             self.assertIn("no feature map directory", run.stdout)
@@ -272,7 +272,7 @@ class MapLintTests(unittest.TestCase):
     def test_since_flag_runs_the_drift_check_from_the_command_line(self):
         with tempfile.TemporaryDirectory() as parent:
             project = self.committed_fixture(parent, "pantry")
-            command = [sys.executable, str(ROOT / "scripts/map_lint.py"), "docs/verification", "--since", "HEAD"]
+            command = [sys.executable, str(ROOT / "skills/map/scripts/map_lint.py"), "docs/verification", "--since", "HEAD"]
             run = subprocess.run(command, cwd=project, text=True, capture_output=True)
             self.assertEqual(run.returncode, 0, run.stdout)
             app = project / "pantry/app.py"
@@ -289,7 +289,6 @@ class MapLintTests(unittest.TestCase):
             root = Path(parent) / "relocated plugin"
             shutil.copytree(ROOT, root, ignore=shutil.ignore_patterns("__pycache__", ".git", "dist", "docs"))
             env = dict(os.environ)
-            env.pop("PLUGIN_DATA", None)
             health = [sys.executable, str(root / "scripts/health.py")]
             report = json.loads(subprocess.run(health, text=True, capture_output=True, env=env, check=True).stdout)
             self.assertEqual((report["feature_map_template"], report["feature_map"]), ("pass", "not_present"))
@@ -303,7 +302,7 @@ class MapLintTests(unittest.TestCase):
             run = subprocess.run(health, text=True, capture_output=True, env=env)
             self.assertEqual(run.returncode, 1)
             self.assertIn("feature map fails lint", json.loads(run.stdout)["reason"])
-            template = root / "references/feature-map-template.md"
+            template = root / "skills/reefstack/references/feature-map-template.md"
             template.write_text(template.read_text().replace("- api: `GET /api/invoices.csv`", "- api: ``"))
             run = subprocess.run(health, text=True, capture_output=True, env=env)
             self.assertIn("feature map template fails lint", json.loads(run.stdout)["reason"])

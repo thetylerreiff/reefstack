@@ -5,7 +5,7 @@ description: Verify requested engineering behavior on the relevant artifact and 
 
 # Verify
 
-Read [the verification standard](../../references/verification.md) when choosing checks for substantial work or any user-facing behavior change. Reuse repository commands and the relevant runtime harness. Do not require a broad suite, build, new tests, or live service access for every edit.
+Read [the verification standard](../reefstack/references/verification.md) when choosing checks for substantial work or any user-facing behavior change. Reuse repository commands and the relevant runtime harness. Do not require a broad suite, build, new tests, or live service access for every edit.
 
 ## Claims first
 
@@ -23,9 +23,9 @@ Choose checks that would fail if the requested behavior or boundary assumption w
 
 ## Drive the app for user-facing changes
 
-When a routine or larger change alters what a user sees or does through a UI, CLI, or API, start the app and use the changed paths as a user would: a browser for web apps, real commands for CLIs, real requests for APIs, a simulator for mobile. Prefer the project's own end-to-end tooling; [app driving](../../harness/app-driving.md) lists options per project type. Trivial edits (copy, color, typo, no visible behavior change) get a focused check and no launch.
+When a routine or larger change alters what a user sees or does through a UI, CLI, or API, start the app and use the changed paths as a user would: a browser for web apps, real commands for CLIs, real requests for APIs, a simulator for mobile. Prefer the project's own end-to-end tooling; [app driving](../reefstack/harness/app-driving.md) lists options per project type. Trivial edits (copy, color, typo, no visible behavior change) get a focused check and no launch.
 
-If `docs/verification/` exists, use its feature files for launch, setup, entry points, and success criteria. Add new user-facing paths to that existing map; this maintains it and does not require a separate map-setup request. Run the [map lint](../../scripts/map_lint.py) on every edited or added map, including aliases: `python3 <package>/scripts/map_lint.py docs/verification`. When an entry point moves, update the map in the same change and add `--since <base>` to catch stale entries. Keep the map's required headings and typed entry bullets; record the lint result, not just the app's tests.
+If `docs/verification/` exists, use its feature files for launch, setup, entry points, and success criteria. Add new user-facing paths to that existing map; this maintains it and does not require a separate map-setup request. Run the [map lint](../map/scripts/map_lint.py) on every edited or added map, including aliases: `python3 <map skill>/scripts/map_lint.py docs/verification`. When an entry point moves, update the map in the same change and add `--since <base>` to catch stale entries. Keep the map's required headings and typed entry bullets; record the lint result, not just the app's tests.
 
 Report each changed path as verified, unreachable (with the reason), blocked, or not tried, with its evidence: screenshots, command output, or saved responses. A sandbox that blocks the launch, or a missing driver, is blocked, never a pass.
 

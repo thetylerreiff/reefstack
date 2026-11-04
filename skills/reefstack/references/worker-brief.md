@@ -2,7 +2,7 @@
 
 A helper starts without your conversation and cannot ask you questions. The brief is the contract. A field you cannot fill means the work is not scoped yet: settle it before spawning. Leave out any narrative about what the answer should be.
 
-Every brief carries these limits unless the parent assigns otherwise: stay within scope, do not launch nested agents or become a coordinator, and do not revert other agents' or the user's edits; other agents may be working in the same repository.
+Every brief carries these limits unless the parent assigns otherwise: stay within scope, do not launch nested agents or become a coordinator, do not revert other agents' or the user's edits, and raise ownership conflicts; other agents may be working in the same repository. After two failed corrections of the same check, return the evidence instead of retrying. Report evidence and gaps: a pass only for a check run and observed on the current code; name missing context instead of inventing the contract.
 
 ## Writable piece
 
@@ -33,6 +33,6 @@ Exact scope (file list or selection rule), the transformation with one worked ex
 
 ## Reviewer
 
-Intent, the current diff, surrounding source, acceptance criteria, and verification evidence. Point to the review rubric. The reviewer stays read-only: no edits, commits, pushes, PR comments, or nested agents.
+Intent, the current diff, surrounding source, acceptance criteria, and verification evidence. Include the review rubric's absolute path or the sections that apply; a helper cannot resolve this package's relative links. The reviewer stays read-only: no edits, commits, pushes, PR comments, or nested agents.
 
 Do not resume a helper merely to poll it.

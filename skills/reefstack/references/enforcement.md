@@ -14,7 +14,7 @@ One occurrence is a fix and a log entry, not a new check. Judgment calls that no
 
 1. **Structure:** remove the wrong way. One owner for each piece of state, one supported path, no stale copy to imitate.
 2. **Types or schema:** make the bad state impossible to write.
-3. **Lint or static check:** fail with a message that names the fix, the way `scripts/health.py` in this package refuses a root `plugin.json`: it names the file that breaks hook loading and the file to use instead.
+3. **Lint or static check:** fail with a message that names the fix, the way Reefstack's playbook lint rejects a step that returns to a step it does not depend on: it names the step and the steps it may return to instead.
 4. **Test:** a test that fails on the real past mistake and passes on the fix.
 5. **Health-check entry:** a package or repository check run with the other checks.
 6. **Written rule:** last, only for judgment calls.

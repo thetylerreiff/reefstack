@@ -1,6 +1,6 @@
 # Playbook graphs
 
-A graph playbook is a dependency graph written as numbered steps. Each step consumes named outputs of earlier steps and produces one of its own. `scripts/playbook_lint.py` checks the shape; the rules below govern running it.
+A graph playbook is a dependency graph written as numbered steps. Each step consumes named outputs of earlier steps and produces one of its own. Reefstack's `scripts/playbook_lint.py` checks the shape in its repository; the rules below govern running it.
 
 ## Step fields
 

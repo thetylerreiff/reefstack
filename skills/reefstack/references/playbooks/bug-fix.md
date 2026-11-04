@@ -1,0 +1,14 @@
+# Bug-fix playbook
+
+Use when a defect needs reproduction or its cause is not yet established. A small, obvious correction with known behavior can stay direct. Investigation and review alone remain read-only. The steps form a [dependency graph](graph.md).
+
+**Enter at:** step 3 with `repro` and `cause` already established, for example by an [Investigation](investigation.md) finding or [Diagnose](../../../diagnose/SKILL.md); both must still hold on the current revision. Without both, start at step 1.
+
+1. **Pin down the failure.** Record expected and actual behavior, the affected entry point, and the narrowest case. **Output:** `repro`: reproduction steps. **Check:** observe the failure or explain precisely why reproduction is unavailable.
+2. **Find the mechanism.** Trace the failing path and inspect state or logs that distinguish causes. **Needs:** `repro`. **Output:** `cause`: the evidence-backed mechanism, separating observation from inference. **Check:** the explanation accounts for the observed failure.
+3. **Set the fix boundary.** Name the smallest correction, affected contracts, owner, and focused regression check. **Needs:** `cause`. **Output:** `fix-boundary`: scope and acceptance condition. **Check:** the regression check would detect the original defect; explain a skipped probe or check.
+4. **Fix and integrate.** Implement only authorized scope and preserve concurrent work. **Needs:** `fix-boundary`. **Output:** `change`: current artifact state and check result. **Check:** the changed path meets the agreed condition before dependent work proceeds.
+5. **Close the evidence loop.** Re-run the original reproduction and affected checks using [Verify](../../../verify/SKILL.md), including maintenance and lint of an existing verification map for added or moved paths. **Needs:** `repro`, `fix-boundary`, `change`. **Output:** `evidence`: results tied to the current revision. **Check:** the original defect no longer occurs and affected checks pass. **On fail:** → step 3 if the regression check never failed on the pre-fix revision, so it misses the defect. → step 2 if the original reproduction still fails although that check captures it, because the cause was wrong; do not keep retrying the fix. → step 3 if a regression appears outside the boundary.
+6. **Review.** Use [Review](../../../review/SKILL.md), scaled to the change. **Needs:** `change`, `evidence`. **Output:** `findings`: each accepted or rejected with a reason. **On fail:** → step 4 for an accepted finding, then recheck only the evidence it makes stale. **Completion check:** current evidence demonstrates the original defect is fixed without relevant regressions. Missing proof leaves an explicit gap and next action. Local completion does not initiate PR delivery.
+
+Use [Diagnose](../../../diagnose/SKILL.md) to isolate the cause and [Deliver](../../../deliver/SKILL.md) for coordination during implementation.

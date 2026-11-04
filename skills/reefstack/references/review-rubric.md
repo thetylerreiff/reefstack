@@ -18,7 +18,7 @@ For a change to a UI, CLI, or API, you receive the verification report and the `
 
 - **Unexercised path:** the diff changes a path, or a mapped entry point to it, with no status in the report. Report each, not a summary.
 - **Verified without evidence:** a path marked verified with no screenshot, command output, or saved response, with evidence from a different entry point or an earlier revision, or with only unit tests.
-- **Stale map entry:** the diff moves or renames an entry point and the map still names the old one. `python3 <package>/scripts/map_lint.py docs/verification --since <base>` catches renamed literals; read the diff for the rest.
+- **Stale map entry:** the diff moves or renames an entry point and the map still names the old one. `python3 <map skill>/scripts/map_lint.py docs/verification --since <base>` catches renamed literals; read the diff for the rest.
 - **Blocked counted as a pass:** a path reported blocked, unreachable, or not tried while the summary calls the change verified, done, or fully tested.
 
 Severity follows impact: a final report that claims verification it does not have is at least P2. When no map exists, check the report against the diff alone and do not ask for a map.

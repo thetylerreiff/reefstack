@@ -18,11 +18,11 @@ def load(name, relative):
 
 LINT = load("reefstack_playbook_lint", "scripts/playbook_lint.py")
 HEALTH = load("reefstack_health_graphs", "scripts/health.py")
-NAMES = LINT.vocabulary((ROOT / "references/playbooks/graph.md").read_text())
+NAMES = LINT.vocabulary((ROOT / "skills/reefstack/references/playbooks/graph.md").read_text())
 
 
 def playbook(name):
-    return (ROOT / "references/playbooks" / (name + ".md")).read_text()
+    return (ROOT / "skills/reefstack/references/playbooks" / (name + ".md")).read_text()
 
 
 class PlaybookGraphLintTests(unittest.TestCase):
@@ -202,16 +202,16 @@ class PlaybookGraphLintTests(unittest.TestCase):
 
     def test_health_rejects_broken_or_missing_graph_files(self):
         cases = (
-            ("references/playbooks/graph.md", None, "missing graph.md"),
-            ("references/playbooks/feature.md", None, "missing graph playbook feature.md"),
-            ("references/playbooks/bug-fix.md", ("→ step 2 if", "→ step 6 if"), "returns to step 6"),
-            ("references/playbooks/investigation.md", ("# Investigation playbook", "# Investigation playbook\n[graph](graph.md)"),
+            ("skills/reefstack/references/playbooks/graph.md", None, "missing graph.md"),
+            ("skills/reefstack/references/playbooks/feature.md", None, "missing graph playbook feature.md"),
+            ("skills/reefstack/references/playbooks/bug-fix.md", ("→ step 2 if", "→ step 6 if"), "returns to step 6"),
+            ("skills/reefstack/references/playbooks/investigation.md", ("# Investigation playbook", "# Investigation playbook\n[graph](graph.md)"),
              "investigation.md links graph.md but is not linted"),
         )
         for relative, replacement, message in cases:
             with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory).resolve()
-                for folder in ("references", "skills", "harness", "scripts"):
+                for folder in ("skills", "scripts"):
                     shutil.copytree(ROOT / folder, root / folder)
                 target = root / relative
                 if replacement is None:

@@ -84,7 +84,7 @@ def load_module(name, path):
     return module
 
 
-MAP_LINT = load_module("reefstack_map_lint", ROOT / "scripts/map_lint.py")
+MAP_LINT = load_module("reefstack_map_lint", ROOT / "skills/map/scripts/map_lint.py")
 
 
 def load_cases(path=EVALUATIONS / "cases.json"):
@@ -436,7 +436,7 @@ def plugin_state():
     manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
     try:
         revision = git(ROOT, "rev-parse", "--short", "HEAD").strip()
-        dirty = bool(git(ROOT, "status", "--porcelain", "--", "skills", "references", "harness", "hooks"))
+        dirty = bool(git(ROOT, "status", "--porcelain", "--", "skills"))
     except SuiteError:
         revision, dirty = "unknown", None
     return {"version": manifest.get("version"), "revision": revision, "uncommitted_procedure_changes": dirty,

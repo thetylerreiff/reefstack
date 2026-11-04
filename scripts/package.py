@@ -14,16 +14,11 @@ INCLUDED_DIRECTORIES = (
     ".codex-plugin",
     "assets",
     "evaluations",
-    "harness",
-    "hooks",
-    "references",
-    "refs",
     "scripts",
-    "settings",
     "skills",
     "tests",
 )
-INCLUDED_FILES = {"README.md", "LICENSE", "VERIFICATION.md", "settings.json", "docs/failure-log.md"}
+INCLUDED_FILES = {"README.md", "LICENSE", "VERIFICATION.md", "docs/failure-log.md"}
 EXCLUDED_DIRECTORY_NAMES = {
     ".agents", ".git", ".github", ".venv", "__pycache__", "build", "cache",
     "caches", "dist", "node_modules", "target", "venv",

@@ -1,6 +1,6 @@
 {
   "name": "reefstack",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Adaptive engineering workflows for fast, verified, maintainable delivery through ordinary conversation.",
   "license": "MIT",
   "author": {
@@ -9,7 +9,6 @@
   "homepage": "https://github.com/thetylerreiff/reefstack",
   "repository": "https://github.com/thetylerreiff/reefstack",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Reefstack",
     "shortDescription": "Engineering flow without the ritual",

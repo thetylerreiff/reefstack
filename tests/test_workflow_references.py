@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location("reefstack_health", ROOT / "scripts/health.py")
 HEALTH = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(HEALTH)
+PLAYBOOKS = "skills/reefstack/references/playbooks"
 
 
 class WorkflowReferenceTests(unittest.TestCase):
@@ -19,28 +20,26 @@ class WorkflowReferenceTests(unittest.TestCase):
     def test_missing_resume_procedure_fails_validation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            shutil.copytree(ROOT / "references", root / "references")
             shutil.copytree(ROOT / "skills", root / "skills")
-            shutil.copytree(ROOT / "harness", root / "harness")
-            (root / "references/playbooks/resume.md").unlink()
+            (root / PLAYBOOKS / "resume.md").unlink()
             with mock.patch.object(HEALTH, "ROOT", root), self.assertRaises(ValueError):
                 HEALTH.check_workflow_references()
 
     def test_nested_playbook_links_cannot_be_missing_or_escape_package(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve() / "plugin"
-            shutil.copytree(ROOT / "references", root / "references")
             shutil.copytree(ROOT / "skills", root / "skills")
-            shutil.copytree(ROOT / "harness", root / "harness")
-            target = root / "references/playbooks/resume.md"
+            target = root / PLAYBOOKS / "resume.md"
             original = target.read_text()
             outside = Path(directory) / "outside.md"
             outside.write_text("not packaged")
-            for link in ("../missing.md", "../../../outside.md"):
+            # The last link stays inside the checkout but leaves skills/, which a skills-only install lacks.
+            (root / "README.md").write_text("repository readme")
+            for link in ("../missing.md", "../../../../../outside.md", "../../../../README.md"):
                 with self.subTest(link=link):
                     target.write_text(original + "\n[Required step](" + link + ")\n")
                     with mock.patch.object(HEALTH, "ROOT", root), self.assertRaisesRegex(
-                        ValueError, "broken workflow reference"
+                        ValueError, "broken or out-of-skills reference"
                     ):
                         HEALTH.check_workflow_references()
 
@@ -48,19 +47,18 @@ class WorkflowReferenceTests(unittest.TestCase):
         names = ("refactoring", "performance", "prototype", "opening-pr", "pr-follow-up", "shipping")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            for folder in ("references", "skills", "harness"):
-                shutil.copytree(ROOT / folder, root / folder)
+            shutil.copytree(ROOT / "skills", root / "skills")
             with mock.patch.object(HEALTH, "ROOT", root):
                 HEALTH.check_workflow_references()
                 for name in names:
-                    path = root / "references/playbooks" / (name + ".md")
+                    path = root / PLAYBOOKS / (name + ".md")
                     original = path.read_bytes()
                     path.unlink()
                     with self.subTest(name=name), self.assertRaises(ValueError):
                         HEALTH.check_workflow_references()
                     path.write_bytes(original)
-                (root / "harness/pr-watch.md").unlink()
-                with self.assertRaisesRegex(ValueError, "broken workflow reference"):
+                (root / "skills/reefstack/harness/pr-watch.md").unlink()
+                with self.assertRaisesRegex(ValueError, "broken or out-of-skills reference"):
                     HEALTH.check_workflow_references()
 
 

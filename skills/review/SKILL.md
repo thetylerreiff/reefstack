@@ -5,7 +5,7 @@ description: Obtain and assess fresh independent review for every non-trivial de
 
 # Review
 
-Use [the review rubric](../../references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit, a change the user asked to make quick, a verification map written on request, and a disposable prototype do not require a reviewer unless the user asks.
+Use [the review rubric](../reefstack/references/review-rubric.md) for relevant correctness, integration, security, and maintainability risks. A tiny known local edit, a change the user asked to make quick, a verification map written on request, and a disposable prototype do not require a reviewer unless the user asks.
 
 ## When and how much
 
@@ -22,8 +22,10 @@ Read findings and trace evidence yourself. Judge each finding's severity yoursel
 
 After fixing a P1 or P2, rerun affected checks and have a reviewer recheck the changed areas once. Repeat a full review only for security, authorization, or data-loss findings. Do not repeat an unchanged review after every local correction.
 
-When the same bug or finding appears a second time, sweep the whole class once instead of fixing the next instance, and follow [enforcement](../../references/enforcement.md): propose the check that makes it fail automatically, and record it in the project's failure log if one exists.
+When the same bug or finding appears a second time, sweep the whole class once instead of fixing the next instance, and follow [enforcement](../reefstack/references/enforcement.md): propose the check that makes it fail automatically, and record it in the project's failure log if one exists.
 
 A stale map entry is fixed in the same change, never deferred: update the feature file to the new entry point, run the map lint with `--since <base>`, drive the new entry point, and have the reviewer recheck those files. Unexercised or unsupported paths go back to [verify](../verify/SKILL.md) or are reported as gaps; they are not reworded into passes.
 
 In a user-requested review, remain read-only and lead with actionable findings and file/line evidence. Review authorization alone is not implementation authorization.
+
+Before spawning a helper, read the host's [delegation mechanics](../reefstack/harness/delegation.md) and brief it with the [worker brief](../reefstack/references/worker-brief.md).

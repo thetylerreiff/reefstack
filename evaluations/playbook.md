@@ -12,8 +12,6 @@ The small typo case requires a direct edit without planning ceremony. `workflow-
 
 These are supplied-handoff continuation scenarios. They check whether the agent treats the note as context rather than proof and rechecks its claims against current instructions, Git state, source, evidence and user intent. They do not simulate native compaction, retain an earlier conversation, launch real workers for the handoff, or prove multi-turn continuity. Preparing the patch and running deterministic checks proves the setup and checks work; behavioral acceptance still needs recorded agent sessions and judgments.
 
-The separate [native lifecycle probe](../harness/lifecycle.md) runs an actual staged conversation through compaction and an app-server process restart. It supplies current repository guidance and excludes installed plugins per turn to avoid testing an older cached release. It is an acceptance probe with explicit staged prompts, not part of this blinded suite or proof of native hook delivery.
-
 The note ships inside the setup patch so it arrives in the same commit as the partial change. Packaging tests extract the release, prepare the patched Git project, and exercise its checks so that this coverage works from an archive too.
 
 ## Refactor, performance and prototype coverage
@@ -74,7 +72,7 @@ revision; any changed file outside `scratch/pickup` violates its scope.
 
 ## Before a run
 
-1. Install and enable Reefstack in the agent's host and trust its hooks, the same way a user would. The runner never installs plugins or changes hook trust; its results record `installation_in_agent: not_checked`. For a comparison arm, run the same cases with the plugin disabled and a different `--label`.
+1. Install Reefstack in the agent's host the same way a user would. The runner never installs skills or plugins; its results record `installation_in_agent: not_checked`. For a comparison arm, run the same cases with Reefstack removed and a different `--label`.
 2. Make sure the agent CLI works non-interactively. The default command is `codex exec --json --ephemeral --approve-for-me --skip-git-repo-check -c {project_trust} -m {model} -`, with the prompt on stdin and the project as the working directory. This uses the current CLI's workspace sandbox and automatic approval review without persisting a chat. Native trials found that `--ephemeral` and `--ignore-user-config` do not prevent this CLI from saving trust for a temporary project; they are not a configuration-isolation guarantee. The default therefore supplies `{project_trust}` as an invocation-only `projects` table for the generated fixture. Custom commands must preserve equivalent isolation or inspect such side effects. Override it with `--agent-command` or `REEFSTACK_AGENT_COMMAND` for another CLI version; `{model}` is replaced with the agent model and `{project_trust}` with that fixture’s scoped configuration, after argument splitting; neither value is evaluated by a shell. Each session runs in its own process group, which is stopped when the agent exits or times out, so servers it started do not carry into the next case.
 3. Run from a repository checkout. A release archive works too: fixture ignore files ship as `gitignore` and become `.gitignore` in the workspace.
 4. Set the environment. Keys are read from the environment only; nothing is written to results.
@@ -137,9 +135,9 @@ How to read them:
 
 ## Stopping rule
 
-Keep changing a skill until **every case passes on two consecutive runs** of the same Reefstack revision: the full suite with `--runs 2` and `stopping_rule_met: yes` in the summary. A `--case` subset or a checkout with uncommitted changes under `skills/`, `references/`, `harness/`, or `hooks/` never meets the rule; the revision is recorded before the runs start. Any procedure edit resets the streak: run the full suite again, not only the case that failed. The agent host must load that same revision; the runner cannot check this, so confirm the installed plugin version.
+Keep changing a skill until **every case passes on two consecutive runs** of the same Reefstack revision: the full suite with `--runs 2` and `stopping_rule_met: yes` in the summary. A `--case` subset or a checkout with uncommitted changes under `skills/` never meets the rule; the revision is recorded before the runs start. Any procedure edit resets the streak: run the full suite again, not only the case that failed. The agent host must load that same revision; the runner cannot check this, so confirm the installed skills come from that revision.
 
-When a case fails, fix the procedure, not the case. Change a rubric or prompt only when it is wrong, never to turn a failure into a pass, and record why. Never delete a case to meet the rule. A failure seen twice goes in `docs/failure-log.md` and is considered for a check, per [enforcement](../references/enforcement.md).
+When a case fails, fix the procedure, not the case. Change a rubric or prompt only when it is wrong, never to turn a failure into a pass, and record why. Never delete a case to meet the rule. A failure seen twice goes in `docs/failure-log.md` and is considered for a check, per [enforcement](../skills/reefstack/references/enforcement.md).
 
 ## Adding a case
 

@@ -2,7 +2,7 @@
 
 A feature map lives in `docs/verification/` of the project being verified: one `README.md` index plus one short file per user-facing feature. It is written for an agent reading it cold, mid-task. Copy the shapes below and replace the example app with the real one; no placeholders survive.
 
-Rules the lint enforces (`scripts/map_lint.py` in this package):
+Rules the lint enforces (`scripts/map_lint.py` in the map skill):
 
 - `README.md` has an H1, a non-empty `## Launch`, and a `## Features` list linking every feature file by file name. No unlisted files, no dead links.
 - Each feature file has an H1, then `## What it is`, `## How to reach it`, `## Setup`, `## Key paths`, `## Success looks like`, in that order. `## Gotchas` and `## Last checked` are optional and come last.

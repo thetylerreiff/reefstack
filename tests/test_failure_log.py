@@ -41,7 +41,7 @@ class FailureLogTests(unittest.TestCase):
                         self.assertIn(f"def {test}(", (ROOT / path).read_text(), test)
 
     def test_enforcement_reference_documents_the_same_entry_shape(self):
-        text = (ROOT / "references/enforcement.md").read_text()
+        text = (ROOT / "skills/reefstack/references/enforcement.md").read_text()
         for field in FIELDS:
             self.assertIn(f"- {field}:", text)
         for outcome in OUTCOMES:

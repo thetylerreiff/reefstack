@@ -12,3 +12,5 @@ For unfamiliar APIs, consult current primary documentation and inspect represent
 Return a compact model of the affected path, authoritative files, existing conventions, uncertain boundaries, and the smallest check that resolves each blocking uncertainty. Send sweeps across many files, unknown locations, and long documentation or log reads to explorers so the main context keeps conclusions, not dumps. Give each a bounded question and source pointers; launch independent questions together. Read a file yourself when you already know it is the one that matters.
 
 This procedure is read-only. A probe that writes data or changes a service needs authorization for that target. Pass verified facts and explicit gaps to [design](../design/SKILL.md) or [deliver](../deliver/SKILL.md); do not pass raw payload dumps as shared context.
+
+Before spawning a helper, read the host's [delegation mechanics](../reefstack/harness/delegation.md) and brief it with the [worker brief](../reefstack/references/worker-brief.md).

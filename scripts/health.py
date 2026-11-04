@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-"""Validate the package and exercise hooks without claiming host activation."""
+"""Validate the skills package without claiming host installation or activation."""
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
-WORKFLOW_REFERENCES = (
-    "references/playbooks/investigation.md", "references/playbooks/bug-fix.md",
-    "references/playbooks/feature.md", "references/playbooks/resume.md",
-    "references/playbooks/refactoring.md", "references/playbooks/performance.md",
-    "references/playbooks/prototype.md", "references/playbooks/opening-pr.md",
-    "references/playbooks/pr-follow-up.md", "references/playbooks/shipping.md",
-    "references/playbooks/graph.md",
-)
+REFERENCES = "skills/reefstack/references/"
+WORKFLOW_REFERENCES = tuple(REFERENCES + "playbooks/" + name + ".md" for name in (
+    "investigation", "bug-fix", "feature", "resume", "refactoring", "performance",
+    "prototype", "opening-pr", "pr-follow-up", "shipping", "graph",
+))
+EXPECTED_SKILLS = {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup", "map"}
+# Codex refuses to load a skill whose description is longer.
+DESCRIPTION_LIMIT = 1024
 
 
 def inside_file(relative):
@@ -29,11 +27,11 @@ def inside_file(relative):
 
 
 def check_feature_map():
-    spec = importlib.util.spec_from_file_location("reefstack_map_lint", inside_file("scripts/map_lint.py"))
+    spec = importlib.util.spec_from_file_location("reefstack_map_lint", inside_file("skills/map/scripts/map_lint.py"))
     map_lint = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(map_lint)
     # Agents copy the template, so it must pass the lint it documents.
-    errors = map_lint.lint_files(map_lint.template_files(inside_file("references/feature-map-template.md")))
+    errors = map_lint.lint_files(map_lint.template_files(inside_file(REFERENCES + "feature-map-template.md")))
     if errors:
         raise ValueError("feature map template fails lint: " + "; ".join(errors))
     if not (ROOT / "docs/verification").exists():
@@ -63,84 +61,68 @@ def check_playbook_graphs():
         raise ValueError("playbook graphs: " + "; ".join(errors))
 
 
+def local_links(path):
+    # Links inside fenced examples, such as the feature-map template's, are not package links.
+    text = re.sub(r"(?ms)^```.*?^```", "", path.read_text(encoding="utf-8"))
+    for target in re.findall(r"\]\(([^)]+)\)", text):
+        if "://" not in target and not target.startswith("#"):
+            yield target, (path.parent / target.split("#", 1)[0]).resolve()
+
+
 def check_workflow_references():
-    """Check the on-demand workflow documents, including their nested local links."""
+    """Require the playbooks, and keep every link under skills/ inside skills/, so the folders install on their own."""
     for relative in WORKFLOW_REFERENCES:
-        path = inside_file(relative)
-        for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
-            if "://" in target or target.startswith("#"):
-                continue
-            local = (path.parent / target.split("#", 1)[0]).resolve()
-            if ROOT not in local.parents or not local.is_file():
-                raise ValueError("broken workflow reference in " + relative + ": " + target)
+        inside_file(relative)
+    skills = (ROOT / "skills").resolve()
+    for path in sorted(skills.rglob("*.md")):
+        for target, local in local_links(path):
+            if skills not in local.parents or not local.is_file():
+                raise ValueError("broken or out-of-skills reference in " + str(path.relative_to(skills.parent)) + ": " + target)
+
+
+def check_skills():
+    names = []
+    for skill in sorted(path for path in (ROOT / "skills").iterdir() if path.is_dir()):
+        text = inside_file(str(skill.relative_to(ROOT) / "SKILL.md")).read_text(encoding="utf-8")
+        if not text.startswith("---\n") or "\n---\n" not in text:
+            raise ValueError("missing frontmatter: " + skill.name)
+        header = text.split("\n---\n", 1)[0] + "\n"
+        description = re.search(r"\ndescription: (.*)\n", header)
+        if f"\nname: {skill.name}\n" not in header or not description or not description.group(1).strip():
+            raise ValueError("invalid skill metadata: " + skill.name)
+        # Codex parses frontmatter as YAML and drops a skill it cannot parse; keep descriptions plain scalars.
+        if ": " in description.group(1) or " #" in description.group(1) or description.group(1)[0] in "'\"[]{}&*!|>%@`#,?:-":
+            raise ValueError(f"description of {skill.name} is not a plain YAML scalar; avoid ': ', ' #', and a leading indicator")
+        if len(description.group(1)) > DESCRIPTION_LIMIT:
+            raise ValueError(f"description of {skill.name} exceeds {DESCRIPTION_LIMIT} characters")
+        names.append(skill.name)
+    if set(names) != EXPECTED_SKILLS:
+        raise ValueError("unexpected skills")
+    return names
 
 
 def check_package():
-    # Codex ignores hooks when a root Agent Plugins plugin.json is present.
-    if (ROOT / "plugin.json").exists():
-        raise ValueError("root plugin.json suppresses Codex plugin hooks; use .codex-plugin/plugin.json")
     manifest = json.loads(inside_file(".codex-plugin/plugin.json").read_text())
     if manifest.get("name") != "reefstack" or not isinstance(manifest.get("version"), str) or not manifest["version"].strip():
         raise ValueError("unexpected plugin identity")
-    hooks = json.loads(inside_file(manifest["hooks"]).read_text())["hooks"]
+    if "hooks" in manifest or (ROOT / "hooks").exists():
+        raise ValueError("Reefstack is skills only; remove hooks from the package and .codex-plugin/plugin.json")
     inside_file(manifest["extensions"]["com.openai"]["onboardingSkill"])
-    if set(hooks) != {"SessionStart", "SubagentStart"}:
-        raise ValueError("unexpected hook events")
-    session_matcher = re.compile(hooks["SessionStart"][0]["matcher"])
-    if not all(session_matcher.fullmatch(source) for source in ("startup", "resume", "clear", "compact")):
-        raise ValueError("session matcher omits a lifecycle source")
-    names = []
-    for skill in sorted((ROOT / "skills").iterdir()):
-        text = inside_file(str(skill.relative_to(ROOT) / "SKILL.md")).read_text()
-        if not text.startswith("---\n") or "\n---\n" not in text:
-            raise ValueError("missing frontmatter: " + skill.name)
-        header = text.split("\n---\n", 1)[0]
-        if f"\nname: {skill.name}\n" not in header + "\n" or "\ndescription: " not in header:
-            raise ValueError("invalid skill metadata: " + skill.name)
-        for target in re.findall(r"\]\(([^)]+)\)", text):
-            if "://" in target or target.startswith("#"):
-                continue
-            local = (skill / target.split("#", 1)[0]).resolve()
-            if ROOT not in local.parents or not local.is_file():
-                raise ValueError("broken skill reference: " + target)
-        names.append(skill.name)
-    if set(names) != {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup", "map"}:
-        raise ValueError("unexpected skills")
-    env = dict(os.environ)
-    env.pop("PLUGIN_DATA", None)
-    env["PLUGIN_ROOT"] = str(ROOT)
-    for mode, event in (("session", "SessionStart"), ("subagent", "SubagentStart")):
-        for source in (("startup", "resume", "clear", "compact") if mode == "session" else (None,)):
-            payload = {"hook_event_name": event}
-            if source:
-                payload["source"] = source
-            handler = hooks[event][0]["hooks"][0]
-            expected_command = 'python3 "${PLUGIN_ROOT}/scripts/context.py" ' + mode
-            if handler["command"] != expected_command:
-                raise ValueError("unexpected hook command")
-            run = subprocess.run(
-                handler["command"], shell=True,
-                input=json.dumps(payload), text=True, capture_output=True,
-                timeout=5, env=env, check=True
-            )
-            result = json.loads(run.stdout)["hookSpecificOutput"]
-            if result["hookEventName"] != event or not result["additionalContext"]:
-                raise ValueError("hook did not return context")
-    feature_map = check_feature_map()
+    names = check_skills()
     check_workflow_references()
+    feature_map = check_feature_map()
     check_playbook_graphs()
     check_evaluations()
-    return {"package": "pass", "hook_handlers": "pass", "skills": names,
+    return {"package": "pass", "skills": names, "skill_links": "pass",
             "feature_map_template": "pass", "feature_map": feature_map, "evaluation_suite": "pass",
             "workflow_references": "pass", "playbook_graphs": "pass",
-            "host_installation": "not_checked", "hook_trust": "not_checked",
-            "native_context_delivery": "not_checked", "behavioral_evaluation": "not_checked"}
+            "host_installation": "not_checked", "behavioral_evaluation": "not_checked"}
 
 
 def main():
     try:
         report = check_package()
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, KeyError) as error:
         print(json.dumps({"package": "fail", "reason": str(error)}))
         return 1
     print(json.dumps(report, indent=2))

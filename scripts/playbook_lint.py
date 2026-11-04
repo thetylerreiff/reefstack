@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that graph playbooks form the dependency graphs described in references/playbooks/graph.md."""
+"""Check that graph playbooks form the dependency graphs described in skills/reefstack/references/playbooks/graph.md."""
 
 from pathlib import Path
 import re
@@ -176,7 +176,7 @@ def lint_playbook(name, text, names):
 
 
 def lint_package(root=ROOT):
-    folder = Path(root) / "references/playbooks"
+    folder = Path(root) / "skills/reefstack/references/playbooks"
     conventions = folder / CONVENTIONS
     if not conventions.is_file():
         return [f"missing {CONVENTIONS}: graph playbooks need its step fields and output names"]

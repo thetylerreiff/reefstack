@@ -1,16 +1,14 @@
 ---
 name: setup
-description: Check a Reefstack installation, automatic context loading, and hook trust during onboarding or repair.
+description: Install, check, or repair Reefstack, or fix Reefstack skills not triggering in chats, automations, or cloud tasks. Use during onboarding or when the user asks why Reefstack did not run.
 ---
 
 # Reefstack setup
 
-This is initial onboarding or repair, never a prerequisite to ordinary engineering work. Run `python3 scripts/health.py` from the installed plugin root to validate packaged files and exercise the hooks. That check does not prove the host runtime loaded them.
+This is onboarding or repair, never a prerequisite to ordinary engineering work. Reefstack is a set of skills; it has no hooks or settings. Report installation, which surfaces load the skills, and behavioral validation separately.
 
-Inspect the host's supported plugin installation and hook trust UI. Enabled hooks require the user to review and trust their definition. Never write trust records or bypass trust on the user's behalf. Test a fresh engineering chat and a resumed/compacted chat, confirming actual context delivery and proportional behavior before claiming automatic activation.
+Follow the host's [install mechanics](../reefstack/harness/install.md): choose one install with the user, confirm what the host actually loaded and under which names, and repair scheduled prompts that do not name the coordinator.
 
-Optional user overrides live in `settings.json` under the host's plugin data directory (the README names it per host). It supports only `enabled`. Change it only when the user requests a preference change. Do not edit the installed cache as a durable preference store.
+A skill runs when a turn names it or the task clearly matches its description. Where Reefstack must apply on every turn, offer the single instruction line the install mechanics give; add it, or change any automation or committed repository file, only with the user's approval, and never edit global instructions silently.
 
-If the user requests installation, add the supplied local marketplace through the host's supported plugin interface, then install and enable Reefstack. Do not silently edit global instruction files. Disabling/uninstalling the plugin should remove its runtime hook contribution; verify that in a new chat. Context already delivered to an open conversation remains there until the session is refreshed.
-
-Consult the packaged README for installation, checks, supported surfaces, and evaluation limitations. Report package validity, installation, enablement, hook trust, actual context delivery, and behavioral validation separately.
+From a Reefstack checkout, `python3 scripts/health.py` validates the files. It does not prove a host loaded them: confirm in a fresh chat that the skill list shows Reefstack, that an ordinary engineering request follows it, and that a small edit stays small.

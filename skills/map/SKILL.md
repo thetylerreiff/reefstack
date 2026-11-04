@@ -13,16 +13,16 @@ Answer from the source and docs; ask the user only what cannot be observed.
 
 - **Surfaces:** web UI, CLI or TUI, API, mobile, desktop. A repository can have several.
 - **Launch:** the documented dev command, ports, environment variables, seed data, test accounts, and a readiness signal.
-- **Drive:** existing end-to-end suites first, then the generic options in [app driving](../../harness/app-driving.md).
+- **Drive:** existing end-to-end suites first, then the generic options in [app driving](../reefstack/harness/app-driving.md).
 - **Features:** start with the three to five most used, found in routes, command definitions, API handlers, menus, or the README. More can come later.
 
 If the app does not start as checked out, report exactly why before writing launch steps. Change product code only if the user authorized it.
 
 ## Write the map
 
-Follow [the feature map template](../../references/feature-map-template.md). The index holds the shared launch, readiness, seed, driver, and cleanup steps and links every feature file. Each feature file covers what it is, how to reach it (every entry point, typed `web`, `cli`, `api`, `mobile`, `desktop`, or `other`, with the real handle), setup or test data, the key paths, and what success looks like. Keep implementation details out; name user paths and observable results.
+Follow [the feature map template](../reefstack/references/feature-map-template.md). The index holds the shared launch, readiness, seed, driver, and cleanup steps and links every feature file. Each feature file covers what it is, how to reach it (every entry point, typed `web`, `cli`, `api`, `mobile`, `desktop`, or `other`, with the real handle), setup or test data, the key paths, and what success looks like. Keep implementation details out; name user paths and observable results.
 
-Run the [map lint](../../scripts/map_lint.py) on `docs/verification` and fix every error.
+Run the [map lint](scripts/map_lint.py) on `docs/verification` and fix every error.
 
 ## Try one entry for real
 

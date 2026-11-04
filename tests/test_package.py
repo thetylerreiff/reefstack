@@ -32,13 +32,15 @@ class PackageTests(unittest.TestCase):
             ("CONTRIBUTING.md", "contributor notes"),
             ("assets/icon.png", "icon"),
             ("hooks/hooks.json", "hooks"),
-            ("references/guide.md", "guide"),
-            ("references/playbooks/resume.md", "resume procedure"),
+            ("references/guide.md", "stale top-level reference"),
+            ("skills/reefstack/references/playbooks/resume.md", "resume procedure"),
+            ("skills/map/scripts/map_lint.py", "map lint"),
             (".reefstack/tasks/private-task.md", "local task state"),
             (".reefstack/tasks/private-task-evidence/output.txt", "local evidence"),
             ("scripts/package.py", "builder"),
             ("skills/example/SKILL.md", "skill"),
-            ("harness/codex.md", "harness"),
+            ("harness/codex.md", "stale harness"),
+            ("skills/reefstack/harness/delegation.md", "harness"),
             ("settings/settings.json", "settings"),
             (".github/workflows/checks.yml", "workflow"),
             (".agents/private.md", "private"),
@@ -67,13 +69,12 @@ class PackageTests(unittest.TestCase):
                 self.assertIn("reefstack/LICENSE", names)
                 self.assertIn("reefstack/VERIFICATION.md", names)
                 self.assertIn("reefstack/CONTRIBUTING.md", names)
-                self.assertIn("reefstack/settings.json", names)
                 self.assertIn("reefstack/evaluations/cases.json", names)
                 for included in (
-                    "assets/icon.png", "hooks/hooks.json", "references/guide.md",
-                    "scripts/package.py", "skills/example/SKILL.md", "harness/codex.md",
-                    "settings/settings.json", "tests/test.py", "evaluations/fixtures/app/main.py",
-                    "references/playbooks/resume.md",
+                    "assets/icon.png", "scripts/package.py", "skills/example/SKILL.md",
+                    "skills/reefstack/harness/delegation.md", "skills/map/scripts/map_lint.py",
+                    "tests/test.py", "evaluations/fixtures/app/main.py",
+                    "skills/reefstack/references/playbooks/resume.md",
                     "docs/failure-log.md",
                 ):
                     self.assertIn("reefstack/" + included, names)
@@ -83,6 +84,9 @@ class PackageTests(unittest.TestCase):
                     "evaluations/results/2026-10-10-run/cases/one/run-1/transcript.txt",
                     ".reefstack/tasks/private-task.md", ".reefstack/tasks/private-task-evidence/output.txt",
                     "docs/private-notes.md",
+                    # Hook-era top-level folders no longer ship.
+                    "hooks/hooks.json", "settings.json", "settings/settings.json",
+                    "references/guide.md", "harness/codex.md",
                 ):
                     self.assertNotIn("reefstack/" + excluded, names)
 

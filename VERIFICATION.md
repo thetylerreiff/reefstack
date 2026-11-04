@@ -1,30 +1,33 @@
 # Verification
 
-This report distinguishes checks of the package from native host activation. Updated November 3, 2026.
+This report distinguishes checks of the package from installation, triggering, and behavior in a host. Updated November 4, 2026.
 
 ## Package and runtime checks
 
 The local health check and unittest suite exercise:
 
-- Manifest and skill references, lifecycle matchers, and declared shell commands.
-- Startup, resume, clear, compaction, and delegated-agent context.
-- The `enabled` override and disabled output; no model settings are accepted.
-- Input/settings rejection and exclusion of untrusted payload text from generated context.
-- Relocation and shell quoting when the package path contains spaces.
-- Separation of coordinator and delegated-agent context.
-- Separation of core procedures from named host mechanics, with no Codex model names in core procedures.
+- Manifest identity and the absence of hooks; skill metadata, with descriptions within Codex's 1,024-character limit.
+- Every link under `skills/` resolves inside `skills/`, so the skill folders install on their own.
+- The coordinator skill's size budget.
+- Separation of core procedures from named host mechanics in `skills/reefstack/harness/`, with no Codex or model names in core procedures.
+- The PR-watch prompt format and its explicit naming of the coordinator skill.
 - Standalone archive layout, inclusion, exclusions, output safety, and extraction.
 - Feature-map lint: required sections and order, typed non-empty entry points, index coverage, `Last checked` statuses, CLI exit codes, and health's lint of the packaged template and any `docs/verification/`.
 - Map drift check (`--since`): a renamed route in the web fixture and a renamed subcommand in the CLI fixture are flagged in real git repositories, and clear once the map moves or the old name is kept as an alias.
 - Evaluation runner: case and fixture validation, blinding rejection, neutral workspaces, environment scrubbing, simulated port-binding denial, cleanup of servers the agent leaves running, deterministic checks and agent exit status overriding the judge, judge-reply failures and retries, input truncation, re-judging saved sessions, the stopping rule (full suite, committed procedures, consecutive runs), the judge's request shape, key handling, and the command-line transport, all with a fake agent and a mock judge. No model was called.
 - Failure log entries name an outcome and an enforcing file that exists.
 - Workflow fixtures apply a real partial CLI change and a handoff note in a Git repository; deterministic checks reject source or note edits for read-only pickup.
-- Compact playbook references, including links inside the playbooks.
-- Actual shell-hook transport on startup, resume, clear, and compaction exposes the Resume reference without reading or changing workspace files. This checks delivery of instructions, not recovery performed by an agent.
+- Compact playbook references and their dependency graphs.
 
 The icon is a square 1254-by-1254 PNG, below the documented size limit, referenced by both logo and composerIcon.
 
 CI runs the package health check and tests and checks an extracted standalone archive. The workflow status shows its actual result; the existence of the workflow is not a passing run.
+
+## Skills only (0.4.0)
+
+On November 4, 2026, Reefstack became a set of skills. It dropped the `SessionStart` and `SubagentStart` hooks, `scripts/context.py`, `settings.json`, and the native hook and lifecycle probes; the playbooks and references moved under `skills/reefstack/`, and the map lint under `skills/map/scripts/`. The coordinator absorbed the always-on activation text, and its description now lists the engineering tasks it covers. PR-watch prompts name the coordinator, because Codex does not carry a skill into a later turn, including a heartbeat turn, unless the turn names it.
+
+The local Codex source read for this change (an April 2026 checkout, older than the installed CLI 0.163.0) shows the triggering rule, the skill roots (`~/.agents/skills`, a repository's `.agents/skills`), symlink following for user and repository skills, the 1,024-character description limit, and plugin skills namespaced as `reefstack:reefstack`. On the installed CLI 0.163.0, `codex debug prompt-input` (which renders the model-visible prompt without a model call) listed the skills from a repository's `.agents/skills/`: copied folders as `reefstack`, `grill`, and so on, and folders symlinked to this checkout as `reefstack:reefstack`, because the checkout's plugin manifest namespaces them. The desktop app, heartbeat turns, and cloud tasks were not tested; whether ordinary requests trigger the coordinator often enough without an `AGENTS.md` line is unmeasured. Sections below describing hooks, context delivery, records, or the lifecycle probe record earlier versions; their scripts no longer exist.
 
 ## Verification-focused redesign (0.3.0)
 
@@ -55,7 +58,7 @@ On October 10, 2026, a three-turn Tally task ran on `gpt-6-luna` at high effort 
 
 The initial handoff had a stale “in progress” work-item row despite passing checks. After compaction it reconciled the row, and after restart the final Current state, Work items, Verification, and Resume agreed with the artifact and latest alias requirement. This is evidence of recovery from inconsistent bookkeeping, not a guarantee that intermediate records never drift. The resumed agent also initially wrote an invalid map entry, ran the now-visible linter, corrected the entry, and reran successfully before handoff.
 
-The repeatable command and coverage are in [the lifecycle guide](harness/lifecycle.md). This test supplies current repository guidance as developer instructions and excludes installed plugins per turn; it does not install or trust hooks and does not prove native hook delivery or desktop-app restart behavior. An earlier attempt read an older installed Reefstack copy and is retained as mixed-host evidence, not credited as validation of the current procedures. Persistent native thread identity, protocol events, record snapshots, and artifact checks are retained locally under `.reefstack/tasks/compact-workflows-evidence/`.
+The repeatable command and coverage were in the lifecycle guide, removed in 0.4.0. This test supplies current repository guidance as developer instructions and excludes installed plugins per turn; it does not install or trust hooks and does not prove native hook delivery or desktop-app restart behavior. An earlier attempt read an older installed Reefstack copy and is retained as mixed-host evidence, not credited as validation of the current procedures. Persistent native thread identity, protocol events, record snapshots, and artifact checks are retained locally under `.reefstack/tasks/compact-workflows-evidence/`.
 
 Fresh import-task replays exposed both missing record creation and missing map coverage, even after the agent read the surrounding guidance. A valid old map passed shape lint while omitting the new command. The import fixture now explicitly rejects missing command coverage, and the compact playbook itself makes on-disk record creation, map maintenance/lint, and record readback concrete stage outputs. These trial failures remain in the local evidence; they must not be erased by a later passing run. The separate typo replay remained a direct edit with no task record.
 
@@ -71,7 +74,7 @@ The initial 110-test source suite passed. Fresh independent review found that th
 
 The native `Stop` guard now checks an observed helper call in the current thread and turn against the saved record and final response. It requests at most one correction, performs no writes, and stays quiet on turns without a helper call. An explicit `--no-guard` preserves user requests for incompatible output formats. Missing/unsupported transcripts, helper calls outside the supported command forms, and alternate record locations remain coverage gaps; the guard does not prove semantic record quality or detect every omitted helper invocation.
 
-The opt-in [native hook probe](harness/hook-delivery.md) exercised actual SessionStart startup/compact/resume and SubagentStart events on Codex CLI 0.160.0. It packages the current source, runs its adapter through native command hooks with invocation-only exact-definition trust, and appends a fresh token only in hook output. Native event identities plus exact model replies establish delivery; the untrusted control returns no token and executes no hook. Resume uses the same persisted thread in a new owned app-server process. The tests reject tool/file-read shortcuts and isolate ambient hooks.
+The opt-in native hook probe (removed in 0.4.0) exercised actual SessionStart startup/compact/resume and SubagentStart events on Codex CLI 0.160.0. It packages the current source, runs its adapter through native command hooks with invocation-only exact-definition trust, and appends a fresh token only in hook output. Native event identities plus exact model replies establish delivery; the untrusted control returns no token and executes no hook. Resume uses the same persisted thread in a new owned app-server process. The tests reject tool/file-read shortcuts and isolate ambient hooks.
 
 Initial native runs passed all four delivery paths with unchanged saved settings. A repeat also passed delivery but failed the configuration guard while a concurrent CLI behavior trial saved trust for its temporary project. Inspection found only those probe-project entries, not saved trust for the native test hooks. The four entries from this follow-up were removed without changing other settings. The subsequent serial native run passed all four paths and the unchanged-configuration guard. Native checks must run separately from those CLI trials; ephemeral CLI sessions are not a configuration-isolation guarantee.
 
@@ -103,8 +106,8 @@ These are targeted source-guided trials with parent acceptance checks, not the f
 
 ## Acceptance in a host
 
-Install and enable Reefstack through the supported interface, review and trust its hook definition, and start a fresh engineering chat. Exercise evaluations/cases.json, including both the grill and skip cases, and inspect actual questions, research, actions, artifacts, and reviewer activity.
+Install one copy of Reefstack (skills folder, plugin, or a repository's `.agents/skills/`) and start a fresh engineering chat. Confirm the skill list shows it and record whether an ordinary request triggers the coordinator without naming it, with and without an `AGENTS.md` line. Exercise evaluations/cases.json, including both the grill and skip cases, and inspect actual questions, research, actions, artifacts, and reviewer activity.
 
-Include a substantial multi-component task, a small local edit, a planning-only request, a failed-worker correction, and unavailable-model handling. Check resume, compaction, and disablement in a fresh session. Record the client version, actual models, code state, checks, elapsed time, corrective rounds, and any escaped defects.
+Include a substantial multi-component task, a small local edit, a planning-only request, a failed-worker correction, and unavailable-model handling. Check a later turn, compaction, a scheduled heartbeat turn, a cloud task, and removal in a fresh session. Record the client version, actual models, code state, checks, elapsed time, corrective rounds, and any escaped defects.
 
-A skipped runtime check is not a pass. Package validity, installation, enablement, trust, context delivery, and verified behavior are separate results.
+A skipped runtime check is not a pass. Package validity, installation, triggering on each surface, and verified behavior are separate results.
