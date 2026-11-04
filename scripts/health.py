@@ -17,6 +17,7 @@ WORKFLOW_REFERENCES = (
     "references/playbooks/refactoring.md", "references/playbooks/performance.md",
     "references/playbooks/prototype.md", "references/playbooks/opening-pr.md",
     "references/playbooks/pr-follow-up.md", "references/playbooks/shipping.md",
+    "references/playbooks/graph.md",
 )
 
 
@@ -51,6 +52,15 @@ def check_evaluations():
     problems = run_evals.validate_suite()
     if problems:
         raise ValueError("evaluation suite: " + "; ".join(problems))
+
+
+def check_playbook_graphs():
+    spec = importlib.util.spec_from_file_location("reefstack_playbook_lint", inside_file("scripts/playbook_lint.py"))
+    playbook_lint = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(playbook_lint)
+    errors = playbook_lint.lint_package(ROOT)
+    if errors:
+        raise ValueError("playbook graphs: " + "; ".join(errors))
 
 
 def check_workflow_references():
@@ -118,10 +128,11 @@ def check_package():
                 raise ValueError("hook did not return context")
     feature_map = check_feature_map()
     check_workflow_references()
+    check_playbook_graphs()
     check_evaluations()
     return {"package": "pass", "hook_handlers": "pass", "skills": names,
             "feature_map_template": "pass", "feature_map": feature_map, "evaluation_suite": "pass",
-            "workflow_references": "pass",
+            "workflow_references": "pass", "playbook_graphs": "pass",
             "host_installation": "not_checked", "hook_trust": "not_checked",
             "native_context_delivery": "not_checked", "behavioral_evaluation": "not_checked"}
 
