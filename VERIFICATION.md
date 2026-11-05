@@ -23,6 +23,10 @@ The icon is a square 1254-by-1254 PNG, below the documented size limit, referenc
 
 CI runs the package health check and tests and checks an extracted standalone archive. The workflow status shows its actual result; the existence of the workflow is not a passing run.
 
+## Blast radius (unreleased)
+
+On November 4, 2026, Reefstack added a `blast-radius` skill, adapted from PStack's skill of the same name without its multi-model step. It answers "what could this break" on request and measures reach when consequential work starts; Verify and Review now point to it for the safety fact. Three routing specifications (a question, a wide-reach feature, a routine additive option that skips it) and one runnable case (`blast-radius-rename-field`) were added. Package health, unit tests, and packaging cover the skill's presence and links only. No agent or judge run has exercised it, and whether its description triggers on ordinary requests is unmeasured.
+
 ## Skills only (0.4.0)
 
 On November 4, 2026, Reefstack became a set of skills. It dropped the `SessionStart` and `SubagentStart` hooks, `scripts/context.py`, `settings.json`, and the native hook and lifecycle probes; the playbooks and references moved under `skills/reefstack/`, and the map lint under `skills/map/scripts/`. The coordinator absorbed the always-on activation text, and its description now lists the engineering tasks it covers. PR-watch prompts name the coordinator, because Codex does not carry a skill into a later turn, including a heartbeat turn, unless the turn names it.

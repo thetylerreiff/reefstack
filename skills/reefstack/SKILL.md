@@ -16,7 +16,7 @@ Optimize time to verified completion while preserving correctness and maintainab
 - **Substantial or consequential work:** follow the matching playbook and obtain a full fresh review aimed at the key fact. Persistence guarantees, permissions, shared state, uncertain integrations, and difficult logic can be consequential even in one file.
 - **Quick, at the user's request:** focused checks only, with no reviewer or extra procedure; claims still carry evidence or a gap, and authorization and destructive-action limits still apply. A "quick question" asks for a short reply, not less process.
 
-Judge depth by coupling, uncertainty, impact, and verification needs, not file count or keywords. Adjust it as evidence changes. Do not ask the user to choose a tier.
+Judge depth by coupling, uncertainty, impact, and verification needs, not file count or keywords; when work may be consequential but its reach is unknown, measure it with [Blast radius](../blast-radius/SKILL.md). Adjust it as evidence changes. Do not ask the user to choose a tier.
 
 ## Dispatch to one compact playbook
 
@@ -39,7 +39,7 @@ A behavior-preserving migration is Refactoring; a read-only performance question
 
 ## Use supporting methods when needed
 
-[Grill](../grill/SKILL.md) resolves consequential product choices or a requested pressure test; clear requirements skip it. [Ground](../ground/SKILL.md) establishes source-backed facts. [Design](../design/SKILL.md) settles caller contracts and ownership. [Diagnose](../diagnose/SKILL.md) isolates failure mechanisms. [Deliver](../deliver/SKILL.md) defines delegation and integration mechanics. [Verify](../verify/SKILL.md) defines adequate behavioral evidence, app driving, and verification-map checks. [Review](../review/SKILL.md) defines independent scrutiny and finding resolution. These are tools for the selected procedure, not a mandatory chain.
+[Grill](../grill/SKILL.md) resolves consequential product choices or a requested pressure test; clear requirements skip it. [Ground](../ground/SKILL.md) establishes source-backed facts. [Design](../design/SKILL.md) settles caller contracts and ownership. Blast radius finds what a change reaches beyond its own lines and the fact it is safe because of. [Diagnose](../diagnose/SKILL.md) isolates failure mechanisms. [Deliver](../deliver/SKILL.md) defines delegation and integration mechanics. [Verify](../verify/SKILL.md) defines adequate behavioral evidence, app driving, and verification-map checks. [Review](../review/SKILL.md) defines independent scrutiny and finding resolution. These are tools for the selected procedure, not a mandatory chain.
 
 Before spawning helpers, read [delegation mechanics](harness/delegation.md); brief each with the [worker brief](references/worker-brief.md). After an authorized PR creation or push, follow PR follow-up's watch policy and schedule it with [PR watch](harness/pr-watch.md); honor status-only requests and paused watches. Choose each helper's model and effort for its work; do not change global settings.
 

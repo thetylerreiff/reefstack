@@ -40,6 +40,14 @@ in `tests/test_playbook_behavior.py`.
   with no match, plus observed count and weight changes. Screenshots of an inert
   design or a production implementation cannot pass it.
 
+`blast-radius-rename-field` asks, read-only, what renaming pantry's `quantity`
+field would break. Every application reference sits in one module, so a search
+makes the rename look contained; the break is in `data/items.json` files the
+current version already wrote. Acceptance requires showing that failure by
+running the real code on disposable data, and naming other readers of the name,
+such as the CSV export header. A list of lines that mention `quantity` cannot
+pass it.
+
 These cases select different procedures without imposing extra ceremony merely
 because a playbook exists. The small typo and supplied-handoff continuation
 cases above remain separate checks of proportional effort and resumed work.

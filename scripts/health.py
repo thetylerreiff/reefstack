@@ -14,7 +14,8 @@ WORKFLOW_REFERENCES = tuple(REFERENCES + "playbooks/" + name + ".md" for name in
     "investigation", "bug-fix", "feature", "resume", "refactoring", "performance",
     "prototype", "opening-pr", "pr-follow-up", "shipping", "graph",
 ))
-EXPECTED_SKILLS = {"reefstack", "grill", "ground", "design", "deliver", "diagnose", "verify", "review", "setup", "map"}
+EXPECTED_SKILLS = {"reefstack", "grill", "ground", "design", "blast-radius", "deliver", "diagnose", "verify", "review",
+                   "setup", "map"}
 # Codex refuses to load a skill whose description is longer.
 DESCRIPTION_LIMIT = 1024
 

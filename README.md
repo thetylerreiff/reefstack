@@ -122,6 +122,7 @@ The skill names organize the implementation. They are not a vocabulary you need 
 | `grill` | Pressure-test the problem and intended outcome when unresolved human choices could materially change substantial or consequential work. |
 | `ground` | Relevant source, existing patterns, and uncertain integration facts. |
 | `design` | Caller-first contracts, ownership, fixtures, and acceptance criteria. |
+| `blast-radius` | What a change could break beyond its own lines, and the one fact it is safe because of, proven by running code. Answers "what could this break" and sizes consequential work. |
 | `deliver` | Implementation, useful delegation, and continuous integration. |
 | `diagnose` | Reproduction, hypotheses, root cause, and regression checks. |
 | `verify` | Behavioral proof, driving the running app for user-facing changes, revision-specific evidence, and coverage gaps. |
