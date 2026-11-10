@@ -23,6 +23,13 @@ ROOT = Path(__file__).resolve().parent.parent
 EVALUATIONS = ROOT / "evaluations"
 CHECKS = ("map_lint", "map_current", "import_map_entry", "no_edits")
 SETUP_KEYS = {"patches", "remove", "deny_port_binding"}
+# What the runner puts in the project: nothing ("host" measures whatever the host has, "plain" expects a
+# host without Reefstack), this checkout's skills, or the skills plus the instruction line that names them.
+ARMS = ("host", "plain", "reefstack", "reefstack-named")
+SKILLS = ROOT / "skills"
+AGENTS_LINE = "For software engineering work, use the reefstack skill.\n"
+# The coordinator counts as used when the session names its file: a read, or the agent saying it applied it.
+COORDINATOR_READ = re.compile(r"(?<![\w-])reefstack/SKILL\.md")
 # Words that tell the agent it is being measured. "test" stays allowed: real apps have tests and
 # real users ask to test their app.
 META_WORDS = re.compile(r"(?i)\b(evals?|evaluat\w*|judg\w*|rubrics?|scor(?:e|es|ed|ing)|benchmark\w*|"
@@ -85,6 +92,28 @@ def load_module(name, path):
 
 
 MAP_LINT = load_module("reefstack_map_lint", ROOT / "skills/map/scripts/map_lint.py")
+GRAPH_TRACE = load_module("reefstack_graph_trace", ROOT / "skills/reefstack/scripts/graph_trace.py")
+PLAYBOOK_READ = re.compile(r"reefstack/references/playbooks/([a-z-]+)\.md")
+
+
+def final_message(transcript):
+    """The agent's last message in a JSON-lines transcript, or the whole text when there is none."""
+    last = None
+    for line in transcript.splitlines():
+        try:
+            item = json.loads(line).get("item") or {}
+        except (ValueError, AttributeError):
+            continue
+        if item.get("type") == "agent_message" and isinstance(item.get("text"), str):
+            last = item["text"]
+    return transcript if last is None else last
+
+
+def procedure_use(transcript):
+    """Which playbooks the session named, and whether its final report traces one step by step."""
+    playbook, errors = GRAPH_TRACE.check(final_message(transcript))
+    return {"playbooks_read": sorted(set(PLAYBOOK_READ.findall(transcript)) - {"graph"}),
+            "step_trace": {"playbook": playbook, "valid": playbook is not None and not errors, "errors": errors}}
 
 
 def load_cases(path=EVALUATIONS / "cases.json"):
@@ -163,7 +192,7 @@ def git(project, *args, env=None):
     return run.stdout
 
 
-def prepare_workspace(case, fixtures, parent):
+def prepare_workspace(case, fixtures, parent, arm="host"):
     """Copy the fixture into a neutrally named project and commit it; return (project, base, head)."""
     project = Path(parent) / case.get("project", case["fixture"])
     shutil.copytree(Path(fixtures) / case["fixture"], project,
@@ -180,6 +209,14 @@ def prepare_workspace(case, fixtures, parent):
             target.unlink()
     git(project, "init", "-q")
     git(project, "symbolic-ref", "HEAD", "refs/heads/main")
+    if arm.startswith("reefstack"):
+        # Like a user-level install, the skills stay out of the project's history, diff, and searches.
+        shutil.copytree(SKILLS, project / ".agents/skills", ignore=shutil.ignore_patterns("__pycache__"))
+        with (project / ".git/info/exclude").open("a", encoding="utf-8") as exclude:
+            exclude.write(".agents/\n")
+    if arm == "reefstack-named":
+        with (project / "AGENTS.md").open("a", encoding="utf-8") as instructions:
+            instructions.write(AGENTS_LINE)
     git(project, "add", "-A")
     git(project, "commit", "-q", "-m", "Initial commit")
     base = git(project, "rev-parse", "HEAD").strip()
@@ -414,11 +451,18 @@ def score(case, result, transcript, diff, judge, case_dir):
     return result
 
 
-def run_case(case, run_number, agent, judge, out_dir, fixtures=EVALUATIONS / "fixtures", hidden=()):
+def suite_probes(case):
+    """Names that show the agent found the suite, and those dropped because the skills themselves say them."""
+    shipped = "".join(path.read_text(encoding="utf-8") for path in sorted(SKILLS.rglob("*.md")))
+    probes = SUITE_FILES + (SANDBOX_PROBES if case.get("setup", {}).get("deny_port_binding") else ())
+    return [name for name in probes if name not in shipped], [name for name in probes if name in shipped]
+
+
+def run_case(case, run_number, agent, judge, out_dir, fixtures=EVALUATIONS / "fixtures", hidden=(), arm="host"):
     case_dir = Path(out_dir) / "cases" / case["id"] / f"run-{run_number}"
     case_dir.mkdir(parents=True)
     with tempfile.TemporaryDirectory() as parent, tempfile.TemporaryDirectory() as scratch:
-        project, base, head = prepare_workspace(case, fixtures, parent)
+        project, base, head = prepare_workspace(case, fixtures, parent, arm)
         env = agent_environment(case, scratch, project, hidden)
         transcript, status, seconds = run_agent(agent["command"], agent["model"], case["prompt"],
                                                 project, env, agent["timeout"])
@@ -426,9 +470,11 @@ def run_case(case, run_number, agent, judge, out_dir, fixtures=EVALUATIONS / "fi
         diff = capture_diff(project, base)
     (case_dir / "transcript.txt").write_text(transcript, encoding="utf-8")
     (case_dir / "diff.patch").write_text(diff, encoding="utf-8")
-    probes = SUITE_FILES + (SANDBOX_PROBES if case.get("setup", {}).get("deny_port_binding") else ())
+    probes, skipped = suite_probes(case)
     result = {"case": case["id"], "run": run_number, "agent_exit": status, "agent_seconds": seconds,
-              "checks": checks, "possible_unblinding": [name for name in probes if name in transcript]}
+              "checks": checks, "possible_unblinding": [name for name in probes if name in transcript],
+              "unblinding_probes_skipped": skipped,
+              "coordinator_read": bool(COORDINATOR_READ.search(transcript)), **procedure_use(transcript)}
     return score(case, result, transcript, diff, judge, case_dir)
 
 
@@ -450,7 +496,9 @@ def summarize(results, cases, runs, full_suite, procedures_committed):
         per_case[case["id"]] = {"passed_runs": sum(item["passed"] for item in own), "runs": len(own),
                                 "mean_score": round(sum(item["score"] for item in own) / max(len(own), 1), 3)}
     every = all(entry["passed_runs"] == entry["runs"] == runs for entry in per_case.values())
-    return {"cases": per_case, "all_passed": every,
+    read = sum(bool(item.get("coordinator_read")) for item in results)
+    return {"cases": per_case, "all_passed": every, "coordinator_read_runs": read,
+            "trigger_rate": round(read / max(len(results), 1), 3),
             # Stopping rule: every case of the full suite passes on two or more consecutive runs of one
             # committed revision of the procedures.
             "stopping_rule_met": every and runs >= 2 and full_suite and procedures_committed}
@@ -464,6 +512,10 @@ def write_report(out_dir, report):
              f"Reefstack {report['reefstack']['version']} at {report['reefstack']['revision']}.", "",
              f"Stopping rule met: {'yes' if report['summary']['stopping_rule_met'] else 'no'} "
              f"({report['runs']} run(s) per case).", "",
+             f"Arm: {report.get('arm', 'host')}. Coordinator skill named in "
+             f"{report['summary']['coordinator_read_runs']} of {len(report['results'])} sessions"
+             + (" (expected 0: this host loaded Reefstack, so the arm is not a baseline)."
+                if report.get("arm") == "plain" and report["summary"]["coordinator_read_runs"] else "."), "",
              "| Case | Run | Score | Passed | Checks | Judge summary |", "| --- | --- | --- | --- | --- | --- |"]
     for item in report["results"]:
         checks = ", ".join(f"{name} {'ok' if value['passed'] else 'FAIL'}" for name, value in item["checks"].items())
@@ -480,9 +532,11 @@ def write_report(out_dir, report):
 
 
 def run_suite(cases, runs, agent, judge, judge_info, results_root, label, hidden=(),
-              fixtures=EVALUATIONS / "fixtures", now=None, full_suite=True):
+              fixtures=EVALUATIONS / "fixtures", now=None, full_suite=True, arm="host"):
     now = now or datetime.now(timezone.utc)
     reefstack = plugin_state()  # recorded before the runs, so later edits cannot be credited
+    if arm.startswith("reefstack"):
+        reefstack["installation_in_agent"] = "project_skills"
     slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-") or "run"
     out_dir = Path(results_root) / f"{now:%Y-%m-%d}-{slug}"
     suffix = 2
@@ -490,9 +544,10 @@ def run_suite(cases, runs, agent, judge, judge_info, results_root, label, hidden
         out_dir = Path(results_root) / f"{now:%Y-%m-%d}-{slug}-{suffix}"
         suffix += 1
     out_dir.mkdir(parents=True)
-    results = [run_case(case, number, agent, judge, out_dir, fixtures, hidden)
+    results = [run_case(case, number, agent, judge, out_dir, fixtures, hidden, arm)
                for number in range(1, runs + 1) for case in cases]
-    report = {"date": now.isoformat(timespec="seconds"), "label": label, "runs": runs, "full_suite": full_suite,
+    report = {"date": now.isoformat(timespec="seconds"), "label": label, "arm": arm, "runs": runs,
+              "full_suite": full_suite,
               "agent": {"model": agent["model"], "family": model_family(agent["model"]),
                         "command": agent["command"]},
               "judge": {**judge_info, "family": model_family(judge_info["model"])},
@@ -542,16 +597,24 @@ def run_new(args, cases):
         raise SuiteError(f"judge and agent are both {agent_family} models; pick a judge from another family")
     if "unknown" in (agent_family, judge_family):
         print("warning: could not tell a model family apart; results record it as unknown", file=sys.stderr)
+    installed = Path.home() / ".agents/skills/reefstack"
+    if args.arm != "host" and (installed.exists() or installed.is_symlink()):
+        raise SuiteError(f"the {args.arm} arm needs a host without Reefstack, but {installed} exists; "
+                         "remove it or use --arm host")
     agent = {"command": args.agent_command, "model": args.agent_model, "timeout": args.timeout}
-    return run_suite(cases, args.runs, agent, judge, judge_info, args.results, args.label,
-                     hidden=hidden, full_suite=full_suite)
+    return run_suite(cases, args.runs, agent, judge, judge_info, args.results, args.label or args.arm,
+                     hidden=hidden, full_suite=full_suite, arm=args.arm)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", action="append", help="run only this case id (repeatable)")
     parser.add_argument("--runs", type=int, default=1, help="consecutive runs per case (2+ for the stopping rule)")
-    parser.add_argument("--label", default="reefstack", help="name for this arm, used in the results folder")
+    parser.add_argument("--arm", choices=ARMS, default="host",
+                        help="host: whatever the agent's host has installed (default); plain: no skills, on a host "
+                             "without Reefstack; reefstack: this checkout's skills in the project; "
+                             "reefstack-named: the skills plus an AGENTS.md line naming the coordinator")
+    parser.add_argument("--label", help="name for the results folder (default: the arm)")
     parser.add_argument("--agent-model", default=os.environ.get("REEFSTACK_AGENT_MODEL"))
     parser.add_argument("--agent-command", default=os.environ.get("REEFSTACK_AGENT_COMMAND", DEFAULT_AGENT_COMMAND))
     parser.add_argument("--timeout", type=int, default=1800, help="seconds per agent session")

@@ -2,7 +2,7 @@
 
 `scripts/run_evals.py` runs the `runnable_cases` in `cases.json`. Each case runs a coding agent on a small sample app, saves what it did, and has a judge on a different model family score it against a rubric. The `activation_cases` remain written specifications; only `runnable_cases` run.
 
-What a run shows: how one agent model, with whatever Reefstack setup its host has, behaved on these tasks, as judged by one other model. It does not prove native hook delivery, speed improvements, or behavior on other tasks. Do not publish benchmark claims without comparative runs.
+What a run shows: how one agent model, with the Reefstack setup of the chosen arm, behaved on these tasks, as judged by one other model. It does not prove native hook delivery, speed improvements, or behavior on other tasks. Do not publish benchmark claims without comparative runs.
 
 ## Workflow coverage
 
@@ -80,7 +80,16 @@ revision; any changed file outside `scratch/pickup` violates its scope.
 
 ## Before a run
 
-1. Install Reefstack in the agent's host the same way a user would. The runner never installs skills or plugins; its results record `installation_in_agent: not_checked`. For a comparison arm, run the same cases with Reefstack removed and a different `--label`.
+1. Choose the arm with `--arm`. The runner never changes the host's own skills, plugins, or instruction files; it only prepares the temporary project.
+
+   | Arm | What the project gets | Use |
+   | --- | --- | --- |
+   | `host` (default) | Nothing. Results record `installation_in_agent: not_checked`. | Measure an install you made in the host yourself. |
+   | `plain` | Nothing. | Baseline, on a host without Reefstack. |
+   | `reefstack` | This checkout's `skills/` copied to `.agents/skills/`, kept out of Git through `.git/info/exclude`. | Do ordinary requests trigger the coordinator, and what changes when they do. |
+   | `reefstack-named` | The same skills, plus a committed `AGENTS.md` line: `For software engineering work, use the reefstack skill.` | Behavior when the coordinator is named on every turn. |
+
+   Every arm except `host` stops if `~/.agents/skills/reefstack` exists, because a second copy would double the skill list or spoil the baseline. A plugin install cannot be detected beforehand: disable it yourself, and check that the `plain` arm's trigger rate is 0.
 2. Make sure the agent CLI works non-interactively. The default command is `codex exec --json --ephemeral --approve-for-me --skip-git-repo-check -c {project_trust} -m {model} -`, with the prompt on stdin and the project as the working directory. This uses the current CLI's workspace sandbox and automatic approval review without persisting a chat. Native trials found that `--ephemeral` and `--ignore-user-config` do not prevent this CLI from saving trust for a temporary project; they are not a configuration-isolation guarantee. The default therefore supplies `{project_trust}` as an invocation-only `projects` table for the generated fixture. Custom commands must preserve equivalent isolation or inspect such side effects. Override it with `--agent-command` or `REEFSTACK_AGENT_COMMAND` for another CLI version; `{model}` is replaced with the agent model and `{project_trust}` with that fixture’s scoped configuration, after argument splitting; neither value is evaluated by a shell. Each session runs in its own process group, which is stopped when the agent exits or times out, so servers it started do not carry into the next case.
 3. Run from a repository checkout. A release archive works too: fixture ignore files ship as `gitignore` and become `.gitignore` in the workspace.
 4. Set the environment. Keys are read from the environment only; nothing is written to results.
@@ -101,8 +110,9 @@ revision; any changed file outside `scratch/pickup` violates its scope.
 python3 scripts/run_evals.py --check                 # cases, fixtures, and blinding; no model calls
 python3 scripts/run_evals.py --list
 python3 scripts/run_evals.py --case web-typo-no-launch
-python3 scripts/run_evals.py --runs 2 --label reefstack    # full suite, stopping-rule run
-python3 scripts/run_evals.py --runs 2 --label baseline     # same cases, plugin disabled
+python3 scripts/run_evals.py --runs 2 --arm reefstack        # full suite, stopping-rule run
+python3 scripts/run_evals.py --runs 2 --arm plain            # same cases, no skills
+python3 scripts/run_evals.py --runs 2 --arm reefstack-named  # skills plus the AGENTS.md line
 python3 scripts/run_evals.py --rejudge evaluations/results/2026-10-10-reefstack   # retry failed judgments
 python3 scripts/run_evals.py --rejudge evaluations/results/2026-10-10-reefstack --all
 ```
@@ -119,13 +129,13 @@ Agents behave differently when they can tell they are being measured, so nothing
 - `--check`, which `scripts/health.py` also runs, rejects words such as eval, judge, rubric, score, benchmark, candidate, or experiment in prompts, project names, fixture paths and files, and patches. "test" is allowed: real apps have checks and real users ask to test their app.
 - The judge sees the session as `session-N`, never the agent's model name.
 
-Reefstack's own skills use words like "review rubric". That is part of the setup being measured, not a signal about the run. The installed plugin also contains `evaluations/`, so an agent that browses the plugin's own files could find these cases; a case run whose transcript mentions `cases.json`, `playbook.md`, or `run_evals.py` is marked `possible_unblinding` and fails. Read it and rerun.
+Reefstack's own skills use words like "review rubric". That is part of the setup being measured, not a signal about the run. The installed plugin also contains `evaluations/`, so an agent that browses the plugin's own files could find these cases; a case run whose transcript mentions `cases.json` or `run_evals.py` is marked `possible_unblinding` and fails. Read it and rerun. A suite file that the shipped skills themselves name cannot tell the two apart, so it is not used as a probe and is listed in `unblinding_probes_skipped`; today that is `playbook.md`, which the coordinator mentions.
 
 The `web-launch-blocked` case simulates a sandbox that refuses local ports: a module on `PYTHONPATH`, outside the project, makes socket binding fail for Python processes with `PermissionError: [Errno 1] Operation not permitted`, and the traceback shows `<frozen socket>` rather than the injected file. It is a simulation, not an OS sandbox: a non-Python server would not be blocked, and an agent that clears `PYTHONPATH` gets past it. A transcript in that case that mentions `PYTHONPATH` or `sitecustomize` is marked `possible_unblinding` and fails.
 
 ## Reading results
 
-Each run writes `evaluations/results/<date>-<label>/`:
+Each run writes `evaluations/results/<date>-<label>/`; the label defaults to the arm:
 
 - `results.json`: date, agent model and family, judge provider, model and family, Reefstack version and revision, and per case run the score, pass/fail, deterministic check results, each criterion's verdict and reason, and any error.
 - `summary.md`: the same as a table, plus each criterion's reason.
@@ -139,11 +149,13 @@ How to read them:
 - `judge_input_truncated` lists inputs cut in the middle to fit the judge (over 300,000 characters of transcript or 200,000 of diff). A criterion about omitted output may then be unjudgeable; read the saved files.
 - Deterministic checks outrank the judge. When they disagree, read the transcript.
 - Read a sample of transcripts and diffs yourself, including every failure. Repeated disagreement with the judge means a biased judge or an ambiguous criterion: fix the criterion and say so in the commit, rather than accepting either side silently.
-- Compare arms only with the same agent model, cases, and settings.
+- **Trigger rate** (`coordinator_read_runs`, `trigger_rate`, and `coordinator_read` per run) is the share of sessions whose transcript names the coordinator's `reefstack/SKILL.md`: the agent read it or said it applied it. It needs no judge. It is a text match, so a repository-wide search that prints the path would count; the `reefstack` arms keep the skills out of Git-aware searches to limit that. Compare `reefstack` with `reefstack-named` to see what the `AGENTS.md` line adds. In `plain` it must be 0; anything else means the host loaded Reefstack and the arm is not a baseline. It does not affect pass or fail.
+- **Playbook use** (`playbooks_read` and `step_trace` per run): which playbook files the transcript names, and whether the final report carries a `Playbook:` step trace that `skills/reefstack/scripts/graph_trace.py` accepts. A small edit should show neither. Like the trigger rate, these are recorded and do not affect pass or fail.
+- Compare arms only with the same agent model, cases, and settings. The difference between `plain` and a `reefstack` arm on the same cases is the with-and-without result; neither arm alone says anything about Reefstack's effect.
 
 ## Stopping rule
 
-Keep changing a skill until **every case passes on two consecutive runs** of the same Reefstack revision: the full suite with `--runs 2` and `stopping_rule_met: yes` in the summary. A `--case` subset or a checkout with uncommitted changes under `skills/` never meets the rule; the revision is recorded before the runs start. Any procedure edit resets the streak: run the full suite again, not only the case that failed. The agent host must load that same revision; the runner cannot check this, so confirm the installed skills come from that revision.
+Keep changing a skill until **every case passes on two consecutive runs** of the same Reefstack revision: the full suite with `--runs 2` and `stopping_rule_met: yes` in the summary. A `--case` subset or a checkout with uncommitted changes under `skills/` never meets the rule; the revision is recorded before the runs start. Any procedure edit resets the streak: run the full suite again, not only the case that failed. The `reefstack` arms copy the skills from this checkout, so the agent gets that revision. In the `host` arm the runner cannot check what the host loaded; confirm the installed skills come from that revision.
 
 When a case fails, fix the procedure, not the case. Change a rubric or prompt only when it is wrong, never to turn a failure into a pass, and record why. Never delete a case to meet the rule. A failure seen twice goes in `docs/failure-log.md` and is considered for a check, per [enforcement](../skills/reefstack/references/enforcement.md).
 

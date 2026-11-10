@@ -1,6 +1,6 @@
 # Verification
 
-This report distinguishes checks of the package from installation, triggering, and behavior in a host. Updated November 4, 2026.
+This report distinguishes checks of the package from installation, triggering, and behavior in a host. Updated November 10, 2026.
 
 ## Package and runtime checks
 
@@ -23,7 +23,20 @@ The icon is a square 1254-by-1254 PNG, below the documented size limit, referenc
 
 CI runs the package health check and tests and checks an extracted standalone archive. The workflow status shows its actual result; the existence of the workflow is not a passing run.
 
-## Blast radius (unreleased)
+## Measured playbook use and proof reports (0.5.0)
+
+On November 9, 2026, `scripts/run_evals.py` gained `--arm`: `plain` (no skills), `reefstack` (this checkout's skills copied into the temporary project's `.agents/skills/`, outside its Git history), and `reefstack-named` (the same plus the `AGENTS.md` line), beside the earlier `host` behavior. Each run records whether the transcript names the coordinator's `SKILL.md`, which playbook files it names, and whether the final report carries a step trace that `skills/reefstack/scripts/graph_trace.py` accepts. Unit tests cover these with a fake agent.
+
+These are the first runs against a real agent and judge. All used agent `gpt-6.1-sol` through `codex exec` on Codex CLI 0.167.0 and judge `claude-opus-5-5` through a command judge; `results.json` and `summary.md` for each are in `evaluations/results/`, and transcripts stayed local.
+
+- **With and without, 0.4.0 skills, one session each (November 9 and 10):** on `web-ui-change-driven` the `plain` arm met 1 of 4 criteria in 69 seconds and the `reefstack` arm 3 of 4 in 179 seconds; `web-typo-no-launch` passed in both arms; `cli-command-renamed-updates-map` met 2 of 4 in both. The coordinator was read in all three `reefstack` sessions without an `AGENTS.md` line and in no `plain` session. No session opened a playbook.
+- **Five revisions of the skills, three cases, two sessions each (November 10, `reefstack` arm, high reasoning effort).** The target per session was a pass, plus an opened playbook and a valid step trace for the two non-small cases, and neither for the typo. The `base-high`, `loop2`, `loop3`, `loop4`, and `loop5` results met it in 2, 2, 3, 5, and 5 of 6 sessions; playbooks were opened in 0, 4, 4, 4, and 4 of the 4 non-small sessions; the typo case passed and stayed small throughout. This release ships the `loop4` skills. The revisions those results name are commits of a working copy, not of this repository, and `loop5`'s wording was not adopted.
+
+What changed in the skills: a small edit is now defined by observable effect, so a one-file behavior change no longer takes the small-edit exemption; beyond a small edit the playbook is mandatory; and the final report carries per-path claims with the command, output, and exit code, the review as it happened, and the step trace.
+
+Limits. This is three cases, two sessions per revision, one agent model, and one judge; it is not a rate, and no comparison of speed or of other cases was made. The 0.5.0 skills have no `plain`-arm pair, and no confirmation run followed the last measurement. The remaining failed session was failed for reporting an independent review the transcript does not show: `codex exec --json` emits neither a spawn nor a helper's reply, so the judge cannot tell a real review from an invented one. Whether those reviews ran was probed by hand in the working copy and not verified here. Agent time on the non-small cases rose from about 80 seconds to between 120 and 200. Triggering in the desktop app, heartbeat turns, and cloud tasks remains untested.
+
+## Blast radius (0.5.0)
 
 On November 4, 2026, Reefstack added a `blast-radius` skill, adapted from PStack's skill of the same name without its multi-model step. It answers "what could this break" on request and measures reach when consequential work starts; Verify and Review now point to it for the safety fact. Three routing specifications (a question, a wide-reach feature, a routine additive option that skips it) and one runnable case (`blast-radius-rename-field`) were added. Package health, unit tests, and packaging cover the skill's presence and links only. No agent or judge run has exercised it, and whether its description triggers on ordinary requests is unmeasured.
 
@@ -45,7 +58,7 @@ Isolated forward-tests with supplied startup context exercised a direct visual e
 
 The grill scenarios in `evaluations/cases.json` specify intended positive and negative routing behavior, including vague product intent, an explicit request to pressure-test, clear substantial requirements, a tiny edit, and technical uncertainty that should be researched. They are evaluation cases, not completed test results. Those case definitions do not establish grill behavior or native automatic activation. Two isolated first-turn checks with supplied startup context observed a focused bottleneck question for an ambiguous merge-bot idea with no edits, and a direct header-color edit with no interview. They do not establish adaptive follow-up behavior or native lifecycle delivery.
 
-No runnable case has been run against a real agent and judge yet; there are no results in `evaluations/results/`. The app-driving cases in `evaluations/cases.json` (a UI change that must be driven, a typo that must not launch the app, a sandbox-blocked launch that must be reported as blocked, a moved entry point that must update the map, and an explicit map request) are specifications, not completed runs. The lint checks a map's shape, not whether its entry points still match the app; that depends on agents following the verify procedure and on review.
+Before 0.5.0 no runnable case had been run against a real agent and judge; the first runs are described above and cover three of the fifteen cases. The app-driving cases in `evaluations/cases.json` (a UI change that must be driven, a typo that must not launch the app, a sandbox-blocked launch that must be reported as blocked, a moved entry point that must update the map, and an explicit map request) are specifications, not completed runs. The lint checks a map's shape, not whether its entry points still match the app; that depends on agents following the verify procedure and on review.
 
 Codex's `hooks/list` (0.162.0-alpha.2) returns no Reefstack hooks while a root Agent Plugins `plugin.json` exists, even with `extensions.com.openai.hooks`. With only `.codex-plugin/plugin.json`, it lists the SessionStart and SubagentStart hooks as untrusted, ready for review.
 

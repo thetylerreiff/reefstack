@@ -30,6 +30,9 @@ FAKE_AGENT = textwrap.dedent('''
     prompt = sys.stdin.read()
     print("prompt:", prompt)
     print("visible settings:", sorted(k for k in os.environ if k.startswith("REEFSTACK_") or k == "ANTHROPIC_API_KEY"))
+    skill = pathlib.Path(".agents/skills/reefstack/SKILL.md")
+    if skill.exists():
+        print("read", skill.resolve())
     app = pathlib.Path("pantry/app.py")
     if "Quantitiy" in prompt:
         app.write_text(app.read_text().replace("Quantitiy", "Quantity"))
@@ -86,7 +89,7 @@ class RunEvalsTests(unittest.TestCase):
     def tearDown(self):
         self.directory.cleanup()
 
-    def suite(self, cases, replies, runs=1, env=None, full_suite=True, committed=True):
+    def suite(self, cases, replies, runs=1, env=None, full_suite=True, committed=True, arm="host"):
         judge = MockJudge(replies)
         state = {"version": "0.0.0", "revision": "abc1234", "uncommitted_procedure_changes": not committed,
                  "installation_in_agent": "not_checked"}
@@ -95,8 +98,92 @@ class RunEvalsTests(unittest.TestCase):
                                                                             return_value=state):
             out_dir, report = RUN_EVALS.run_suite(cases, runs, self.agent, judge, self.judge_info,
                                                   self.temp / "results", "reefstack", hidden={"ANTHROPIC_API_KEY"},
-                                                  now=NOW, full_suite=full_suite)
+                                                  now=NOW, full_suite=full_suite, arm=arm)
         return out_dir, report, judge
+
+    def test_arms_put_skills_in_the_project_but_out_of_its_history(self):
+        case = CASES["web-typo-no-launch"]
+        for arm in RUN_EVALS.ARMS:
+            with self.subTest(arm=arm), tempfile.TemporaryDirectory() as parent:
+                project, _, _ = RUN_EVALS.prepare_workspace(case, RUN_EVALS.EVALUATIONS / "fixtures", parent, arm)
+                installed = (project / ".agents/skills/reefstack/SKILL.md").is_file()
+                self.assertEqual(installed, arm.startswith("reefstack"))
+                self.assertEqual(installed, (project / ".agents/skills/map/scripts/map_lint.py").is_file())
+                named = (project / "AGENTS.md").read_text() if (project / "AGENTS.md").exists() else ""
+                self.assertEqual("use the reefstack skill" in named, arm == "reefstack-named")
+                # Neither the skills nor the instruction line count as the agent's edits.
+                self.assertEqual(RUN_EVALS.git(project, "status", "--porcelain"), "")
+                self.assertEqual(RUN_EVALS.capture_diff(project, "HEAD"), "")
+                self.assertNotIn(".agents", RUN_EVALS.git(project, "ls-files"))
+
+    def test_trigger_rate_counts_sessions_that_name_the_coordinator(self):
+        case = CASES["web-typo-no-launch"]
+        for arm, read in (("reefstack", True), ("reefstack-named", True), ("plain", False), ("host", False)):
+            with self.subTest(arm=arm):
+                out_dir, report, _ = self.suite([case], [verdict(case), verdict(case)], runs=2, arm=arm)
+                self.assertEqual([item["coordinator_read"] for item in report["results"]], [read, read])
+                self.assertEqual((report["summary"]["coordinator_read_runs"], report["summary"]["trigger_rate"]),
+                                 (2 * read, float(read)))
+                self.assertEqual(report["arm"], arm)
+                self.assertTrue(report["summary"]["all_passed"])
+                self.assertIn(f"Arm: {arm}. Coordinator skill named in {2 * read} of 2 sessions",
+                              (out_dir / "summary.md").read_text())
+        self.assertEqual(report["reefstack"]["installation_in_agent"], "not_checked")
+        _, report, _ = self.suite([case], [verdict(case)], arm="reefstack")
+        self.assertEqual(report["reefstack"]["installation_in_agent"], "project_skills")
+        # A mention of some other skill, or of the folder alone, is not a read of the coordinator.
+        for text in ("cat .agents/skills/grill/SKILL.md", "ls .agents/skills/reefstack", "my-reefstack/SKILL.md"):
+            self.assertIsNone(RUN_EVALS.COORDINATOR_READ.search(text), text)
+        self.assertTrue(RUN_EVALS.COORDINATOR_READ.search("sed -n 1,80p /home/u/.agents/skills/reefstack/SKILL.md"))
+
+    def test_procedure_use_reads_playbooks_and_the_final_step_trace_from_the_transcript(self):
+        trace = "Playbook: feature\n" + "\n".join(f"{n}. {name}: done" for n, name in enumerate(
+            ("acceptance", "contract", "workstream", "change", "evidence", "findings"), 1))
+        lines = [{"type": "item.completed", "item": {"type": "command_execution", "command":
+                  "cat .agents/skills/reefstack/references/playbooks/feature.md "
+                  ".agents/skills/reefstack/references/playbooks/graph.md"}},
+                 {"type": "item.completed", "item": {"type": "agent_message", "text": "Playbook: nonsense"}},
+                 {"type": "item.completed", "item": {"type": "agent_message", "text": "Done.\n" + trace}}]
+        use = RUN_EVALS.procedure_use("\n".join(json.dumps(line) for line in lines) + "\nnot json")
+        self.assertEqual(use, {"playbooks_read": ["feature"],
+                               "step_trace": {"playbook": "feature", "valid": True, "errors": []}})
+        broken = RUN_EVALS.procedure_use(trace.replace("3. workstream: done\n", ""))["step_trace"]
+        self.assertFalse(broken["valid"])
+        self.assertIn("step 3 is missing", " ".join(broken["errors"]))
+        # A report with no trace is recorded as such, not as an error: small edits follow no playbook.
+        self.assertEqual(RUN_EVALS.procedure_use("Fixed the typo.")["step_trace"],
+                         {"playbook": None, "valid": False, "errors": []})
+
+    def test_plain_arm_that_loaded_the_coordinator_is_reported_as_not_a_baseline(self):
+        case = copy.deepcopy(CASES["web-typo-no-launch"])
+        case["prompt"] += " (I already read plugins/reefstack/skills/reefstack/SKILL.md)"
+        out_dir, report, _ = self.suite([case], [verdict(case)], arm="plain")
+        self.assertEqual(report["summary"]["coordinator_read_runs"], 1)
+        self.assertIn("the arm is not a baseline", (out_dir / "summary.md").read_text())
+
+    def test_a_suite_file_the_skills_name_is_skipped_as_a_probe_and_recorded(self):
+        # The coordinator itself names evaluations/playbook.md, so reading it must not fail a run as unblinded.
+        case = copy.deepcopy(CASES["web-typo-no-launch"])
+        case["prompt"] += " (see evaluations/playbook.md)"
+        _, report, _ = self.suite([case], [verdict(case)])
+        result = report["results"][0]
+        self.assertEqual((result["possible_unblinding"], result["unblinding_probes_skipped"]), ([], ["playbook.md"]))
+        self.assertTrue(result["passed"])
+
+    def test_installing_arms_refuse_a_host_that_already_has_reefstack(self):
+        home = self.temp / "home"
+        (home / ".agents/skills/reefstack").mkdir(parents=True)
+        env = {"REEFSTACK_JUDGE_MODEL": "claude-judge", "ANTHROPIC_API_KEY": SECRET}
+        with mock.patch.dict(os.environ, env), mock.patch.object(RUN_EVALS.Path, "home", return_value=home), \
+                mock.patch.object(RUN_EVALS, "run_suite", return_value=("out", {})) as run_suite:
+            parser_args = dict(case=["web-typo-no-launch"], runs=1, agent_model="gpt-test-agent",
+                               agent_command="true", timeout=5, results=str(self.temp / "r"), label=None)
+            for arm in ("plain", "reefstack", "reefstack-named"):
+                with self.subTest(arm=arm), self.assertRaisesRegex(RUN_EVALS.SuiteError, "host without Reefstack"):
+                    RUN_EVALS.run_new(mock.Mock(arm=arm, **parser_args), list(CASES.values()))
+            run_suite.assert_not_called()
+            RUN_EVALS.run_new(mock.Mock(arm="host", **parser_args), list(CASES.values()))
+            self.assertEqual((run_suite.call_args.args[6], run_suite.call_args.kwargs["arm"]), ("host", "host"))
 
     def test_packaged_suite_is_valid_and_blind(self):
         self.assertEqual(RUN_EVALS.validate_suite(), [])

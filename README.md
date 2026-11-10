@@ -17,7 +17,7 @@ The objective is fast delivery with correctness and maintainability preserved. T
 
 ## Install
 
-Reefstack is a set of skills: Markdown procedures plus one standard-library Python lint used by the `map` and `verify` skills. It has no hooks, settings, or background processes. Install one copy; two installs list every skill twice.
+Reefstack is a set of skills: Markdown procedures plus two standard-library Python scripts: the feature-map lint used by the `map` and `verify` skills, and a step-trace checker used by the coordinator. It has no hooks, settings, or background processes. Install one copy; two installs list every skill twice.
 
 **As skills (recommended).** Link the skill folders into Codex's user skills directory, keeping them siblings:
 
@@ -66,10 +66,12 @@ The main agent owns intent, difficult boundaries, the critical path, integration
 
 | Work | Expected depth |
 | --- | --- |
-| Small, known local change | Direct edit and a focused check. No design exercise, delegation, or required independent review. |
-| Routine bounded change | Relevant inspection, targeted checks, and a light fresh review of the intended case and callers. |
+| Small edit: nothing a user can do or observe changes beyond wording or appearance | Direct edit and a focused check. No playbook, delegation, or required independent review. |
+| Routine bounded change, however few lines | The matching playbook, targeted checks, and a light fresh review of the intended case and callers. |
 | Substantial or consequential change | Proved contracts, coordinated implementation, behavioral integration checks, and a full fresh review aimed at the fact the change is safe because of. |
 | Any change you ask to make quick | Focused checks only, with no reviewer or extra procedure. Claims still carry evidence or a gap. |
+
+Beyond a small edit, the final report ends with one claim per changed path (its status and the command, output, and exit code that back it), what the reviewer found, and a step trace of the playbook, which `skills/reefstack/scripts/graph_trace.py` checks against the playbook's dependency graph.
 
 Depth depends on coupling, uncertainty, impact, and verification needs. File count and the word *feature* do not decide it. A one-line permission change can deserve more scrutiny than a large mechanical edit.
 
@@ -141,7 +143,8 @@ Reefstack has no settings file. To turn it off, remove the linked skill folders 
 - **Skills:** everything that ships is under `skills/`. The coordinator `skills/reefstack/` holds the playbooks and shared references in `references/` and the Codex install, delegation, and PR-watch mechanics in `harness/`. Links under `skills/` stay inside it, so the folders install on their own.
 - **Feature map lint:** `skills/map/scripts/map_lint.py [docs/verification] [--since <base>]` checks a map's shape (required sections, typed non-empty entry points, an index with no missing or dead entries) and, with `--since`, flags entries whose route, command, or label the change removed from the source.
 - **Development tooling:** `scripts/health.py`, `scripts/playbook_lint.py`, `scripts/package.py`, and `tests/` check the repository; none of them run when the skills are used.
-- **Evaluations:** `scripts/run_evals.py` runs blind cases against sample apps in `evaluations/fixtures/` and has a judge from a different model family score them; see [the playbook](evaluations/playbook.md).
+- **Step-trace checker:** `skills/reefstack/scripts/graph_trace.py <report|->` checks a final report's `Playbook:` trace: every step listed or skipped with a reason, each step's inputs current when it ran, and everything built on a repeated step listed again.
+- **Evaluations:** `scripts/run_evals.py` runs blind cases against sample apps in `evaluations/fixtures/`, with or without this checkout's skills in the project (`--arm`), and has a judge from a different model family score them. Each run also records whether the session opened the coordinator and a playbook and whether its report carries a valid step trace; see [the playbook](evaluations/playbook.md).
 - **Failure log:** `docs/failure-log.md` records observed failures and the check, skill change, or map fix each became; [enforcement](skills/reefstack/references/enforcement.md) says when a repeat becomes a check.
 - **Distribution:** `.codex-plugin/plugin.json` is the Codex manifest and lists only the skills; `.agents/plugins/marketplace.json` makes this repository installable as a marketplace.
 

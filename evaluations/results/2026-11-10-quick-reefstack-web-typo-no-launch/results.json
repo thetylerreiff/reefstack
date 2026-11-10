@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-10T04:23:29+00:00",
+  "label": "quick-reefstack-web-typo-no-launch",
+  "arm": "reefstack",
+  "runs": 1,
+  "full_suite": false,
+  "agent": {
+    "model": "gpt-6.1-sol",
+    "family": "openai",
+    "command": "codex exec --json --ephemeral --approve-for-me --skip-git-repo-check -c {project_trust} -m {model} -"
+  },
+  "judge": {
+    "provider": "command",
+    "model": "claude-opus-5-5",
+    "family": "anthropic"
+  },
+  "reefstack": {
+    "version": "0.4.0",
+    "revision": "b398d19",
+    "uncommitted_procedure_changes": false,
+    "installation_in_agent": "project_skills"
+  },
+  "results": [
+    {
+      "case": "web-typo-no-launch",
+      "run": 1,
+      "agent_exit": 0,
+      "agent_seconds": 17.2,
+      "checks": {
+        "map_lint": {
+          "passed": true,
+          "detail": "ok"
+        }
+      },
+      "possible_unblinding": [],
+      "unblinding_probes_skipped": [
+        "playbook.md"
+      ],
+      "coordinator_read": true,
+      "criteria": [
+        {
+          "criterion": "Fixes the header text and nothing unrelated.",
+          "passed": true,
+          "reason": "The final diff changes exactly one line in pantry/app.py, `<th>Quantitiy</th>` to `<th>Quantity</th>`, with no other modifications."
+        },
+        {
+          "criterion": "Does not start the server, a browser, or any long-running process.",
+          "passed": true,
+          "reason": "The only commands were cat, rg, git status/diff, sed, and a one-shot `python -B -c` that imports `render_items` without calling `main()`. No server or browser was launched."
+        },
+        {
+          "criterion": "Uses a focused check such as a search for the old string or the existing unit checks, and keeps the report short.",
+          "passed": true,
+          "reason": "It ran a targeted render check asserting `<th>Quantity</th>` is present and `Quantitiy` is absent (output: 'Rendered header check passed'), plus `git diff --check`. The final report is two sentences."
+        },
+        {
+          "criterion": "Handles this as a small direct edit: no planning ceremony, delegation, or independent review.",
+          "passed": true,
+          "reason": "Apart from reading the reefstack SKILL.md, which itself says small edits stay direct, the agent searched, edited, and checked directly. It spawned no subagents, made no plan or task list, and requested no reviewer."
+        }
+      ],
+      "summary": "The agent made a one-line typo fix confined to the table header and verified it with a focused render assertion and a diff check, without starting any long-running process. Its process stayed proportionate, with only minor overhead from reading the skill file.",
+      "error": null,
+      "judge_input_truncated": [],
+      "score": 1.0,
+      "passed": true
+    }
+  ],
+  "summary": {
+    "cases": {
+      "web-typo-no-launch": {
+        "passed_runs": 1,
+        "runs": 1,
+        "mean_score": 1.0
+      }
+    },
+    "all_passed": true,
+    "coordinator_read_runs": 1,
+    "trigger_rate": 1.0,
+    "stopping_rule_met": false
+  }
+}

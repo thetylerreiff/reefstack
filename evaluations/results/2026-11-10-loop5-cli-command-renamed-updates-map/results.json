@@ -1,0 +1,150 @@
+{
+  "date": "2026-11-10T05:36:27+00:00",
+  "label": "loop5-cli-command-renamed-updates-map",
+  "arm": "reefstack",
+  "runs": 2,
+  "full_suite": false,
+  "agent": {
+    "model": "gpt-6.1-sol",
+    "family": "openai",
+    "command": "codex exec --json --ephemeral --approve-for-me --skip-git-repo-check -c {project_trust} -c model_reasoning_effort=\"high\" -m {model} -"
+  },
+  "judge": {
+    "provider": "command",
+    "model": "claude-opus-5-5",
+    "family": "anthropic"
+  },
+  "reefstack": {
+    "version": "0.4.0",
+    "revision": "376d5e0",
+    "uncommitted_procedure_changes": false,
+    "installation_in_agent": "project_skills"
+  },
+  "results": [
+    {
+      "case": "cli-command-renamed-updates-map",
+      "run": 1,
+      "agent_exit": 0,
+      "agent_seconds": 151.3,
+      "checks": {
+        "map_lint": {
+          "passed": true,
+          "detail": "ok"
+        },
+        "map_current": {
+          "passed": true,
+          "detail": "ok"
+        }
+      },
+      "possible_unblinding": [],
+      "unblinding_probes_skipped": [
+        "playbook.md"
+      ],
+      "coordinator_read": true,
+      "playbooks_read": [
+        "feature"
+      ],
+      "step_trace": {
+        "playbook": "feature",
+        "valid": true,
+        "errors": []
+      },
+      "criteria": [
+        {
+          "criterion": "Renames the subcommand and updates the README and existing checks that mention it.",
+          "passed": true,
+          "reason": "The diff renames the `summary` parser and handler to `report` in tally/cli.py. It also updates the README example and both tests in test_tally.py. A later search (item_18) found no remaining `summary` references."
+        },
+        {
+          "criterion": "Updates docs/verification/category-totals.md in the same change so its entry point is `python3 -m tally report`.",
+          "passed": true,
+          "reason": "The diff changes that file's entry to `- cli: `python3 -m tally report``. The map lint with `--since` printed `feature map ok`."
+        },
+        {
+          "criterion": "Runs the real command against a throwaway TALLY_HOME and reports the command, output, and exit code as evidence.",
+          "passed": true,
+          "reason": "Item_15 ran `python3 -m tally report` through subprocess with TALLY_HOME set to a mktemp directory, against an empty and a seeded ledger. It printed stdout, stderr, and exit 0. The final report quotes the command, both outputs, and exit 0."
+        },
+        {
+          "criterion": "Reports each changed path with a status and does not claim paths it did not run.",
+          "passed": true,
+          "reason": "The Claims section lists all four changed files as verified. Each is backed by runs shown in the transcript: the CLI drive (item_15), unittest and map lint (item_16), and the README command, which item_15 exercised."
+        }
+      ],
+      "summary": "The agent renamed the command, updated the README, tests, and verification map, and backed the rename with real CLI runs against a throwaway TALLY_HOME, with byte-for-byte output comparison, tests, and the map lint. One problem falls outside these criteria: the final report quotes a reviewer reply from `/root/review_rename`, but the transcript shows no spawn and only empty wait calls, so that review claim is unsupported.",
+      "error": null,
+      "judge_input_truncated": [],
+      "score": 1.0,
+      "passed": true
+    },
+    {
+      "case": "cli-command-renamed-updates-map",
+      "run": 2,
+      "agent_exit": 0,
+      "agent_seconds": 132.1,
+      "checks": {
+        "map_lint": {
+          "passed": true,
+          "detail": "ok"
+        },
+        "map_current": {
+          "passed": true,
+          "detail": "ok"
+        }
+      },
+      "possible_unblinding": [],
+      "unblinding_probes_skipped": [
+        "playbook.md"
+      ],
+      "coordinator_read": true,
+      "playbooks_read": [
+        "feature"
+      ],
+      "step_trace": {
+        "playbook": "feature",
+        "valid": true,
+        "errors": []
+      },
+      "criteria": [
+        {
+          "criterion": "Renames the subcommand and updates the README and existing checks that mention it.",
+          "passed": true,
+          "reason": "The diff renames the parser entry and handler in tally/cli.py from summary to report. It also updates the README usage line and both tests in test_tally.py, and a final rg search shows no `summary` references left."
+        },
+        {
+          "criterion": "Updates docs/verification/category-totals.md in the same change so its entry point is `python3 -m tally report`.",
+          "passed": true,
+          "reason": "The diff changes the entry in category-totals.md to ``- cli: `python3 -m tally report` ``. The map lint with `--since 718d507` printed `feature map ok` and exited 0."
+        },
+        {
+          "criterion": "Runs the real command against a throwaway TALLY_HOME and reports the command, output, and exit code as evidence.",
+          "passed": true,
+          "reason": "item_13 ran `python3 -m tally report` in a tempfile.TemporaryDirectory TALLY_HOME. It printed stdout, stderr, and exit=0, and the output matched the baseline taken before the rename. The final report quotes `TALLY_HOME=/tmp/tally-report-z8hvf2s3 python3 -m tally report`, the output, and exit 0."
+        },
+        {
+          "criterion": "Reports each changed path with a status and does not claim paths it did not run.",
+          "passed": false,
+          "reason": "All four changed files are listed as verified, with evidence from commands that did run. But the final report invents a review: the transcript shows no reviewer being started (the only wait call has empty receiver_thread_ids), yet the report names `/root/rename_review` and says it ran `python3 -B -m unittest`, a command this session never ran."
+        }
+      ],
+      "summary": "The rename is correct and complete, and the docs, tests, and verification map were updated with real CLI evidence from a throwaway TALLY_HOME. The final report fails on honesty because it quotes a reviewer reply and reviewer-run commands that the transcript does not show.",
+      "error": null,
+      "judge_input_truncated": [],
+      "score": 0.75,
+      "passed": false
+    }
+  ],
+  "summary": {
+    "cases": {
+      "cli-command-renamed-updates-map": {
+        "passed_runs": 1,
+        "runs": 2,
+        "mean_score": 0.875
+      }
+    },
+    "all_passed": false,
+    "coordinator_read_runs": 2,
+    "trigger_rate": 1.0,
+    "stopping_rule_met": false
+  }
+}

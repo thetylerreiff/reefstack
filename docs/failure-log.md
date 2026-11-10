@@ -51,6 +51,13 @@ Observed failures in Reefstack's own development and what each became. See [enfo
 - Became: check
 - Enforced by: `scripts/run_evals.py` import_map_entry; `tests/test_run_evals.py` test_import_case_requires_new_command_coverage_not_just_valid_shape
 
+### Reading the coordinator would fail a run as unblinded
+
+- Seen: 2026-11-09, audit of the evaluation runner before any live run
+- Cause: the coordinator skill names `evaluations/playbook.md`, and the runner treated `playbook.md` in a transcript as proof the agent found the suite.
+- Became: check
+- Enforced by: `scripts/run_evals.py` suite_probes drops and records probes the shipped skills name; `tests/test_run_evals.py` test_a_suite_file_the_skills_name_is_skipped_as_a_probe_and_recorded
+
 ### Ephemeral CLI trials persisted temporary-project trust
 
 - Seen: 2026-10-10, native-hook configuration guard during concurrent behavior probes
